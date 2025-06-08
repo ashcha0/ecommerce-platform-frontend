@@ -1,7 +1,7 @@
 <template>
   <div class="product-management">
-    <!-- 商品统计卡片 -->
-    <a-row :gutter="16" class="mb-20">
+    <!-- 商品统计卡片 - 后端接口未完成，暂时注释 -->
+    <!-- <a-row :gutter="16" class="mb-20">
       <a-col :span="6">
         <a-card class="stat-card">
           <a-statistic
@@ -56,7 +56,7 @@
           </a-statistic>
         </a-card>
       </a-col>
-    </a-row>
+    </a-row> -->
 
     <!-- 搜索区域 -->
     <a-card class="search-card" title="商品搜索">
@@ -614,12 +614,13 @@ import dayjs from 'dayjs'
 // 数据状态
 const loading = ref(false)
 const products = ref([])
-const stats = ref({
-  totalProducts: 0,
-  activeProducts: 0,
-  lowStockProducts: 0,
-  totalStockValue: 0
-})
+// 统计数据 - 后端接口未完成，暂时注释
+// const stats = ref({
+//   totalProducts: 0,
+//   activeProducts: 0,
+//   lowStockProducts: 0,
+//   totalStockValue: 0
+// })
 
 // 分页配置
 const pagination = reactive({
@@ -721,18 +722,38 @@ const editFormRules = {
 // 初始化
 onMounted(() => {
   fetchProducts()
-  fetchStats()
+  // fetchStats() // 后端接口未完成，暂时注释
 })
 
-// 获取商品统计
-const fetchStats = async () => {
-  try {
-    const { data } = await getProductStatsApi()
-    stats.value = data
-  } catch (error) {
-    console.error('获取统计信息失败:', error)
-  }
-}
+// 获取商品统计 - 后端接口未完成，暂时注释
+// const fetchStats = async () => {
+//   try {
+//     // 获取所有商品数据来计算统计信息
+//     const { data } = await getProductsApi({
+//       pageNum: 1,
+//       pageSize: 1000 // 获取足够多的数据来计算统计
+//     })
+//     
+//     const productList = data.list || []
+//     
+//     // 计算统计数据
+//     stats.value = {
+//       totalProducts: productList.length,
+//       activeProducts: productList.filter(p => p.status === 1).length,
+//       lowStockProducts: productList.filter(p => (p.stock || 0) < (p.minStock || 10)).length,
+//       totalStockValue: productList.reduce((sum, p) => sum + ((p.price || 0) * (p.stock || 0)), 0)
+//     }
+//   } catch (error) {
+//     console.error('获取统计信息失败:', error)
+//     // 设置默认值
+//     stats.value = {
+//       totalProducts: 0,
+//       activeProducts: 0,
+//       lowStockProducts: 0,
+//       totalStockValue: 0
+//     }
+//   }
+// }
 
 // 获取商品列表
 const fetchProducts = async () => {
