@@ -17,7 +17,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8080/ecommerce-api',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, '/api')
+        rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
   },

@@ -1,7 +1,7 @@
 import axios from './request'
 
 // 商品管理API
-const PRODUCT_API = '/api/products'
+const PRODUCT_API = '/products'
 
 /**
  * 获取商品列表
