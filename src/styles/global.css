@@ -1,0 +1,183 @@
+/* 全局样式重置 */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #1d2129;
+  background-color: #f7f8fa;
+}
+
+/* 通用工具类 */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.mb-16 {
+  margin-bottom: 16px;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.mt-16 {
+  margin-top: 16px;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.p-16 {
+  padding: 16px;
+}
+
+.p-20 {
+  padding: 20px;
+}
+
+/* 表格样式优化 */
+.arco-table-th {
+  background-color: #f7f8fa !important;
+  font-weight: 600;
+}
+
+.arco-table-td {
+  border-bottom: 1px solid #f2f3f5;
+}
+
+/* 卡片样式 */
+.search-card {
+  margin-bottom: 16px;
+}
+
+.action-bar {
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 状态标签样式 */
+.status-tag {
+  font-weight: 500;
+}
+
+/* 金额显示样式 */
+.amount {
+  font-weight: 600;
+  color: #f53f3f;
+}
+
+.amount.positive {
+  color: #00b42a;
+}
+
+/* 图片样式 */
+.product-image {
+  border-radius: 4px;
+  object-fit: cover;
+}
+
+.empty-image {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #f7f8fa;
+  border: 1px dashed #c9cdd4;
+  border-radius: 4px;
+  color: #86909c;
+  font-size: 12px;
+}
+
+/* 操作按钮样式 */
+.action-buttons {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 搜索表单样式 */
+.search-form {
+  background: #fff;
+  padding: 20px;
+  border-radius: 6px;
+  box-shadow: 0 2px 5px 1px rgba(0, 0, 0, 0.05);
+}
+
+.search-form .arco-form-item {
+  margin-bottom: 16px;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .action-bar {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+  
+  .search-form .arco-form {
+    flex-direction: column;
+  }
+  
+  .search-form .arco-form-item {
+    width: 100% !important;
+  }
+}
+
+/* 加载状态 */
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+/* 空状态 */
+.empty-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #86909c;
+}
+
+.empty-container .empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+/* 统计卡片 */
+.stat-card {
+  text-align: center;
+  padding: 24px;
+}
+
+.stat-card .stat-value {
+  font-size: 32px;
+  font-weight: 600;
+  color: #1d2129;
+  margin-bottom: 8px;
+}
+
+.stat-card .stat-label {
+  font-size: 14px;
+  color: #86909c;
+}
