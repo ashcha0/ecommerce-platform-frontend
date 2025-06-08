@@ -103,7 +103,7 @@
             {{ formatDateTime(scope.row.createTime) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="250" fixed="right">
           <template #default="scope">
             <el-button size="small" @click="viewProduct(scope.row)">查看</el-button>
             <el-button size="small" type="primary" @click="editProduct(scope.row)">编辑</el-button>
@@ -257,11 +257,11 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   getProductsApi as getProducts,
-  searchProductsApi as searchProducts,
+  searchProductsApi as searchProductsApi,
   getProductDetailApi as getProductDetail,
   createProductApi as createProduct,
   updateProductApi as updateProduct,
-  deleteProductApi as deleteProduct,
+  deleteProductApi as deleteProductApi,
   toggleProductStatusApi as toggleProductStatus
 } from '@/api/product'
 
@@ -369,7 +369,7 @@ export default {
           }
         })
         
-        const response = await searchProducts(params)
+        const response = await searchProductsApi(params)
         if (response.code === 200) {
           productList.value = response.data.list
           pagination.total = response.data.total
@@ -435,7 +435,7 @@ export default {
           }
         )
         
-        const response = await deleteProduct(product.id)
+        const response = await deleteProductApi(product.id)
         if (response.code === 200) {
           ElMessage.success('删除成功')
           getProductList()
