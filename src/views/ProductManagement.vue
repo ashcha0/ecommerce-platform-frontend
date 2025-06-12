@@ -493,16 +493,33 @@ export default {
         
         if (response.code === 200) {
           // 检查是否有警告信息
-          if (response.data && response.data.includes('URL格式无效')) {
-            // 显示警告弹窗
-            ElMessageBox.alert(
-              response.data,
-              '警告',
-              {
-                confirmButtonText: '确定',
-                type: 'warning'
-              }
-            )
+          let hasWarning = false
+          if (isEdit.value) {
+            // 更新商品时，警告信息在response.data中
+            if (response.data && response.data.includes('URL格式无效')) {
+              hasWarning = true
+              ElMessageBox.alert(
+                response.data,
+                '警告',
+                {
+                  confirmButtonText: '确定',
+                  type: 'warning'
+                }
+              )
+            }
+          } else {
+            // 创建商品时，警告信息在response.message中
+            if (response.message && response.message.includes('URL格式无效')) {
+              hasWarning = true
+              ElMessageBox.alert(
+                response.message,
+                '警告',
+                {
+                  confirmButtonText: '确定',
+                  type: 'warning'
+                }
+              )
+            }
           }
           ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
           dialogVisible.value = false
