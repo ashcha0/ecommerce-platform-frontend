@@ -492,6 +492,18 @@ export default {
          }
         
         if (response.code === 200) {
+          // 检查是否有警告信息
+          if (response.data && response.data.includes('URL格式无效')) {
+            // 显示警告弹窗
+            ElMessageBox.alert(
+              response.data,
+              '警告',
+              {
+                confirmButtonText: '确定',
+                type: 'warning'
+              }
+            )
+          }
           ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
           dialogVisible.value = false
           getProductList()
