@@ -367,11 +367,21 @@ const formRules = {
 
 // 编辑表单验证规则
 const editFormRules = {
+  realName: [
+    { required: true, message: '请输入真实姓名' },
+    { min: 2, max: 20, message: '真实姓名长度为2-20字符' }
+  ],
   phone: [
+    { required: true, message: '请输入联系电话' },
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
   ],
   email: [
+    { required: true, message: '请输入邮箱地址' },
     { type: 'email', message: '请输入正确的邮箱地址' }
+  ],
+  address: [
+    { required: true, message: '请输入客户地址' },
+    { min: 5, max: 200, message: '客户地址长度为5-200字符' }
   ]
 }
 
@@ -495,10 +505,35 @@ const showEditModal = (customer) => {
 // 更新客户
 const handleUpdate = async () => {
   try {
-    const valid = await editFormRef.value.validate()
-    if (!valid) return
+    // 检查表单引用是否存在
+    if (!editFormRef.value) {
+      Message.error('表单引用错误，请刷新页面重试')
+      return
+    }
     
-    await updateCustomerApi(currentEditCustomer.value.id, editForm)
+    // 检查validate方法是否存在
+    if (typeof editFormRef.value.validate !== 'function') {
+      Message.error('表单验证方法不存在，请刷新页面重试')
+      return
+    }
+
+    try {
+      const valid = await editFormRef.value.validate()
+    } catch (error) {
+      return
+    }
+    
+    // 构建更新数据，包含客户ID
+    const updateData = {
+      id: currentEditCustomer.value.id,
+      realName: editForm.realName,
+      phone: editForm.phone,
+      email: editForm.email,
+      address: editForm.address
+    }
+    
+    const response = await updateCustomerApi(currentEditCustomer.value.id, updateData)
+
     Message.success('更新成功')
     editModalVisible.value = false
     resetEditForm()
