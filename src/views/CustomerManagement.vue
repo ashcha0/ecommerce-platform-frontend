@@ -346,15 +346,26 @@ const formRules = {
     { min: 6, max: 20, message: '密码长度为6-20字符' }
   ],
   confirmPassword: [
-    { required: true, message: '请确认密码' },
+    { required: true, message: '请确认密码', trigger: 'blur' },
     { 
-      validator: (rule, value) => {
-        if (value !== createForm.password) {
-          return Promise.reject('两次输入的密码不一致')
+      validator: (value, callback) => {
+        if (!value) {
+          callback('请确认密码')
+          return
         }
-        return Promise.resolve()
-      }
+        
+        if (value !== createForm.password) {
+          callback('两次输入的密码不一致')
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
     }
+  ],
+  realName: [
+    { required: false, message: '请输入真实姓名' },
+    { min: 2, max: 20, message: '真实姓名长度为2-20字符' }
   ],
   phone: [
     { required: true, message: '请输入联系电话' },
@@ -362,6 +373,10 @@ const formRules = {
   ],
   email: [
     { type: 'email', message: '请输入正确的邮箱地址' }
+  ],
+  address: [
+    { required: false, message: '请输入客户地址' },
+    { max: 200, message: '地址长度不能超过200字符' }
   ]
 }
 
@@ -468,17 +483,28 @@ const showCreateModal = () => {
 const handleCreate = async () => {
   try {
     const valid = await createFormRef.value.validate()
-    if (!valid) return
+    
+    if (valid === false) {
+      return
+    }
     
     // 调用注册接口
-    await createCustomerApi(createForm)
+    const response = await createCustomerApi(createForm)
+
     Message.success('创建成功')
     createModalVisible.value = false
-     resetCreateForm()
-     await fetchCustomers()
-   } catch (error) {
-     Message.error(error.message || '创建失败')
-   }
+    resetCreateForm()
+    await fetchCustomers()
+  } catch (error) {
+    // 检查是否是表单验证错误
+    if (typeof error === 'string') {
+      Message.error('表单验证失败: ' + error)
+    } else if (error.message) {
+      Message.error('创建失败: ' + error.message)
+    } else {
+      Message.error('创建失败: 未知错误')
+    }
+  }
 }
 
 // 重置创建表单
