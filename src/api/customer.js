@@ -104,9 +104,44 @@ export const batchDeleteCustomersApi = (ids) => {
   })
 }
 
+/**
+ * 检查用户名是否存在
+ * @param {string} username - 用户名
+ * @returns {Promise}
+ */
+export const checkUsernameApi = (username) => {
+  return request({
+    url: '/customers/check-username',
+    method: 'get',
+    params: { username }
+  })
+}
 
+/**
+ * 检查手机号是否存在
+ * @param {string} phone - 手机号
+ * @returns {Promise}
+ */
+export const checkPhoneApi = (phone) => {
+  return request({
+    url: '/customers/check-phone',
+    method: 'get',
+    params: { phone }
+  })
+}
 
-
+/**
+ * 检查邮箱是否存在
+ * @param {string} email - 邮箱
+ * @returns {Promise}
+ */
+export const checkEmailApi = (email) => {
+  return request({
+    url: '/customers/check-email',
+    method: 'get',
+    params: { email }
+  })
+}
 
 /**
  * 导出客户数据

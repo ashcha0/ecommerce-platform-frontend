@@ -271,7 +271,10 @@ import {
   updateCustomerApi,
   deleteCustomerApi,
   batchDeleteCustomersApi,
-  exportCustomersApi
+  exportCustomersApi,
+  checkUsernameApi,
+  checkPhoneApi,
+  checkEmailApi
 } from '@/api/customer'
 import { Message, Modal } from '@arco-design/web-vue'
 import dayjs from 'dayjs'
@@ -339,7 +342,26 @@ const formRules = {
   username: [
     { required: true, message: '请输入用户名' },
     { min: 3, max: 50, message: '用户名长度为3-50字符' },
-    { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字、下划线' }
+    { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字、下划线' },
+    {
+      validator: async (value, callback) => {
+        if (!value) {
+          callback()
+          return
+        }
+        try {
+          const { data } = await checkUsernameApi(value)
+          if (data) {
+            callback('该用户名已被注册，请更换其他用户名')
+          } else {
+            callback()
+          }
+        } catch (error) {
+          callback('验证用户名时出错，请稍后重试')
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   password: [
     { required: true, message: '请输入密码' },
@@ -369,10 +391,48 @@ const formRules = {
   ],
   phone: [
     { required: true, message: '请输入联系电话' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' },
+    {
+      validator: async (value, callback) => {
+        if (!value || !/^1[3-9]\d{9}$/.test(value)) {
+          callback()
+          return
+        }
+        try {
+          const { data } = await checkPhoneApi(value)
+          if (data) {
+            callback('该手机号已被注册，请更换其他手机号')
+          } else {
+            callback()
+          }
+        } catch (error) {
+          callback('验证手机号时出错，请稍后重试')
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   email: [
-    { type: 'email', message: '请输入正确的邮箱地址' }
+    { type: 'email', message: '请输入正确的邮箱地址' },
+    {
+      validator: async (value, callback) => {
+        if (!value || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          callback()
+          return
+        }
+        try {
+          const { data } = await checkEmailApi(value)
+          if (data) {
+            callback('该邮箱已被注册，请更换其他邮箱')
+          } else {
+            callback()
+          }
+        } catch (error) {
+          callback('验证邮箱时出错，请稍后重试')
+        }
+      },
+      trigger: 'blur'
+    }
   ],
   address: [
     { required: false, message: '请输入客户地址' },
