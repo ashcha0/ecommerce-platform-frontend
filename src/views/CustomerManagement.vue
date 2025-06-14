@@ -397,9 +397,9 @@ const fetchCustomers = async () => {
   loading.value = true
   try {
     const { data } = await getCustomersApi({
-    page: pagination.current,
-    size: pagination.pageSize
-  })
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
+    })
     
     customers.value = data.list || []
     pagination.total = data.total || 0
@@ -416,8 +416,8 @@ const handleSearch = async () => {
   try {
     const params = {
       ...searchForm,
-      page: pagination.current,
-      size: pagination.pageSize
+      pageNum: pagination.current,
+      pageSize: pagination.pageSize
     }
     
     // 过滤空值
@@ -429,7 +429,7 @@ const handleSearch = async () => {
     
     const { data } = await searchCustomersApi(params)
     
-    customers.value = data.records || []
+    customers.value = data.list || []
     pagination.total = data.total || 0
   } catch (error) {
     Message.error('搜索客户失败')
