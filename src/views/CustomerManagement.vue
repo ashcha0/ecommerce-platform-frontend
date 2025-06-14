@@ -1,81 +1,23 @@
 <template>
   <div class="customer-management">
-    <!-- 统计卡片区域 -->
-    <a-row :gutter="16" class="mb-20">
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="总客户数"
-            :value="stats.totalCustomers"
-            :value-style="{ color: '#1890ff' }"
-          >
-            <template #prefix>
-              <icon-user />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="新增客户"
-            :value="stats.newCustomers"
-            :value-style="{ color: '#52c41a' }"
-          >
-            <template #prefix>
-              <icon-user-add />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="活跃客户"
-            :value="stats.activeCustomers"
-            :value-style="{ color: '#faad14' }"
-          >
-            <template #prefix>
-              <icon-heart />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="客户消费总额"
-            :value="stats.totalAmount"
-            :precision="2"
-            :value-style="{ color: '#722ed1' }"
-          >
-            <template #prefix>
-              ¥
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-    </a-row>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1>客户管理</h1>
+    </div>
+
+
 
     <!-- 搜索区域 -->
     <a-card class="search-card" title="客户搜索">
       <a-form :model="searchForm" layout="inline" class="search-form">
-        <a-form-item label="客户姓名">
-          <a-input v-model="searchForm.name" placeholder="输入客户姓名" allow-clear />
+        <a-form-item label="用户名">
+          <a-input v-model="searchForm.username" placeholder="输入用户名" allow-clear />
         </a-form-item>
         <a-form-item label="客户电话">
           <a-input v-model="searchForm.phone" placeholder="输入客户电话" allow-clear />
         </a-form-item>
         <a-form-item label="客户邮箱">
           <a-input v-model="searchForm.email" placeholder="输入客户邮箱" allow-clear />
-        </a-form-item>
-        <a-form-item label="注册时间">
-          <a-range-picker
-            v-model="searchForm.timeRange"
-            show-time
-            format="YYYY-MM-DD HH:mm:ss"
-            placeholder="[开始时间, 结束时间]"
-          />
         </a-form-item>
         <a-form-item>
           <a-space>
@@ -129,9 +71,14 @@
         row-key="id"
       >
         <template #columns>
-          <a-table-column title="客户姓名" data-index="name" :width="120">
+          <a-table-column title="用户名" data-index="username" :width="120">
             <template #cell="{ record }">
-              <a-link @click="showDetail(record)">{{ record.name }}</a-link>
+              <a-link @click="showDetail(record)">{{ record.username }}</a-link>
+            </template>
+          </a-table-column>
+          <a-table-column title="真实姓名" data-index="realName" :width="120">
+            <template #cell="{ record }">
+              {{ record.realName || '-' }}
             </template>
           </a-table-column>
           <a-table-column title="联系电话" data-index="phone" :width="140" />
@@ -147,21 +94,14 @@
               </a-tooltip>
             </template>
           </a-table-column>
-          <a-table-column title="订单数量" data-index="orderCount" :width="100">
-            <template #cell="{ record }">
-              <a-link @click="showCustomerOrders(record)">
-                {{ record.orderCount || 0 }}
-              </a-link>
-            </template>
-          </a-table-column>
-          <a-table-column title="消费总额" data-index="totalAmount" :width="120">
-            <template #cell="{ record }">
-              <span class="amount">¥{{ (record.totalAmount || 0).toFixed(2) }}</span>
-            </template>
-          </a-table-column>
           <a-table-column title="注册时间" data-index="createTime" :width="160">
             <template #cell="{ record }">
               {{ formatDateTime(record.createTime) }}
+            </template>
+          </a-table-column>
+          <a-table-column title="更新时间" data-index="updateTime" :width="160">
+            <template #cell="{ record }">
+              {{ formatDateTime(record.updateTime) }}
             </template>
           </a-table-column>
           <a-table-column title="操作" :width="150" fixed="right">
@@ -194,8 +134,23 @@
       <a-form :model="createForm" :rules="formRules" layout="vertical" ref="createFormRef">
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="客户姓名" field="name" required>
-              <a-input v-model="createForm.name" placeholder="请输入客户姓名" />
+            <a-form-item label="用户名" field="username" required>
+              <a-input v-model="createForm.username" placeholder="请输入用户名" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="密码" field="password" required>
+              <a-input-password v-model="createForm.password" placeholder="请输入密码" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="确认密码" field="confirmPassword" required>
+          <a-input-password v-model="createForm.confirmPassword" placeholder="请再次输入密码" />
+        </a-form-item>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="真实姓名" field="realName">
+              <a-input v-model="createForm.realName" placeholder="请输入真实姓名" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
@@ -214,13 +169,6 @@
             :auto-size="{ minRows: 2 }"
           />
         </a-form-item>
-        <a-form-item label="备注" field="remark">
-          <a-textarea 
-            v-model="createForm.remark" 
-            placeholder="客户备注信息" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
       </a-form>
     </a-modal>
 
@@ -232,15 +180,15 @@
       @ok="handleUpdate"
       @cancel="resetEditForm"
     >
-      <a-form :model="editForm" :rules="formRules" layout="vertical" ref="editFormRef">
+      <a-form :model="editForm" :rules="editFormRules" layout="vertical" ref="editFormRef">
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="客户姓名" field="name" required>
-              <a-input v-model="editForm.name" placeholder="请输入客户姓名" />
+            <a-form-item label="真实姓名" field="realName">
+              <a-input v-model="editForm.realName" placeholder="请输入真实姓名" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系电话" field="phone" required>
+            <a-form-item label="联系电话" field="phone">
               <a-input v-model="editForm.phone" placeholder="请输入联系电话" />
             </a-form-item>
           </a-col>
@@ -255,98 +203,61 @@
             :auto-size="{ minRows: 2 }"
           />
         </a-form-item>
-        <a-form-item label="备注" field="remark">
-          <a-textarea 
-            v-model="editForm.remark" 
-            placeholder="客户备注信息" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
       </a-form>
     </a-modal>
     
     <!-- 客户详情抽屉 -->
-    <a-drawer 
-      v-model:visible="detailVisible" 
+    <a-drawer
+      v-model:visible="detailVisible"
       title="客户详情"
-      placement="right"
-      width="600px"
+      width="500px"
+      :footer="false"
     >
       <div v-if="currentCustomer" class="customer-detail">
         <!-- 基本信息 -->
-        <a-descriptions title="基本信息" :column="2" bordered>
-          <a-descriptions-item label="客户姓名">{{ currentCustomer.name }}</a-descriptions-item>
-          <a-descriptions-item label="联系电话">{{ currentCustomer.phone }}</a-descriptions-item>
-          <a-descriptions-item label="邮箱地址">{{ currentCustomer.email || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="注册时间">{{ formatDateTime(currentCustomer.createTime) }}</a-descriptions-item>
-          <a-descriptions-item label="客户地址" :span="2">{{ currentCustomer.address || '-' }}</a-descriptions-item>
-        </a-descriptions>
-        
-        <!-- 消费统计 -->
-        <a-divider>消费统计</a-divider>
-        <a-descriptions :column="2" bordered>
-          <a-descriptions-item label="订单数量">{{ currentCustomer.orderCount || 0 }}</a-descriptions-item>
-          <a-descriptions-item label="消费总额">
-            <span class="amount">¥{{ (currentCustomer.totalAmount || 0).toFixed(2) }}</span>
+        <a-descriptions title="基本信息" :column="1" bordered>
+          <a-descriptions-item label="用户名">
+            {{ currentCustomer.username }}
           </a-descriptions-item>
-          <a-descriptions-item label="平均订单金额">
-            <span class="amount">¥{{ currentCustomer.avgOrderAmount ? currentCustomer.avgOrderAmount.toFixed(2) : '0.00' }}</span>
+          <a-descriptions-item label="真实姓名">
+            {{ currentCustomer.realName || '-' }}
           </a-descriptions-item>
-          <a-descriptions-item label="最后消费时间">{{ currentCustomer.lastOrderTime ? formatDateTime(currentCustomer.lastOrderTime) : '-' }}</a-descriptions-item>
+          <a-descriptions-item label="联系电话">
+            {{ currentCustomer.phone }}
+          </a-descriptions-item>
+          <a-descriptions-item label="邮箱">
+            {{ currentCustomer.email || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="地址">
+            {{ currentCustomer.address || '-' }}
+          </a-descriptions-item>
+          <a-descriptions-item label="注册时间">
+            {{ formatDateTime(currentCustomer.createTime) }}
+          </a-descriptions-item>
+          <a-descriptions-item label="更新时间">
+            {{ formatDateTime(currentCustomer.updateTime) }}
+          </a-descriptions-item>
         </a-descriptions>
-        
-        <!-- 备注信息 -->
-        <a-divider>备注信息</a-divider>
-        <p>{{ currentCustomer.remark || '无备注' }}</p>
-        
+
         <!-- 操作按钮 -->
-        <a-divider>操作</a-divider>
-        <a-space>
-          <a-button type="primary" @click="showCustomerOrders(currentCustomer)">
-            <icon-file-text /> 查看订单
-          </a-button>
-          <a-button @click="showEditModal(currentCustomer)">
-            <icon-edit /> 编辑客户
-          </a-button>
-        </a-space>
+        <div style="margin-top: 20px; text-align: center">
+          <a-space>
+            <a-button type="primary" @click="showEditModal(currentCustomer)">
+              编辑客户
+            </a-button>
+            <a-button 
+              type="outline" 
+              status="danger" 
+              @click="deleteCustomer(currentCustomer.id)"
+            >
+              删除客户
+            </a-button>
+          </a-space>
+        </div>
       </div>
     </a-drawer>
     
-    <!-- 客户订单抽屉 -->
-    <a-drawer 
-      v-model:visible="ordersVisible" 
-      title="客户订单"
-      placement="right"
-      width="800px"
-    >
-      <div v-if="customerOrders.length > 0">
-        <a-table :data="customerOrders" :pagination="false">
-          <template #columns>
-            <a-table-column title="订单号" data-index="orderNo" :width="160" />
-            <a-table-column title="订单金额" data-index="totalAmount" :width="120">
-              <template #cell="{ record }">
-                <span class="amount">¥{{ record.totalAmount.toFixed(2) }}</span>
-              </template>
-            </a-table-column>
-            <a-table-column title="订单状态" data-index="status" :width="100">
-              <template #cell="{ record }">
-                <a-tag :color="getOrderStatusColor(record.status)">
-                  {{ getOrderStatusText(record.status) }}
-                </a-tag>
-              </template>
-            </a-table-column>
-            <a-table-column title="创建时间" data-index="createTime" :width="160">
-              <template #cell="{ record }">
-                {{ formatDateTime(record.createTime) }}
-              </template>
-            </a-table-column>
-          </template>
-        </a-table>
-      </div>
-      <div v-else class="empty-state">
-        <a-empty description="该客户暂无订单" />
-      </div>
-    </a-drawer>
+
   </div>
 </template>
 
@@ -360,8 +271,6 @@ import {
   updateCustomerApi,
   deleteCustomerApi,
   batchDeleteCustomersApi,
-  getCustomerStatsApi,
-  getCustomerOrdersApi,
   exportCustomersApi
 } from '@/api/customer'
 import { Message, Modal } from '@arco-design/web-vue'
@@ -370,13 +279,6 @@ import dayjs from 'dayjs'
 // 数据状态
 const loading = ref(false)
 const customers = ref([])
-const customerOrders = ref([])
-const stats = ref({
-  totalCustomers: 0,
-  newCustomers: 0,
-  activeCustomers: 0,
-  totalAmount: 0
-})
 
 // 分页配置
 const pagination = reactive({
@@ -389,10 +291,9 @@ const pagination = reactive({
 
 // 搜索表单
 const searchForm = reactive({
-  name: '',
+  username: '',
   phone: '',
-  email: '',
-  timeRange: []
+  email: ''
 })
 
 // 表格选择
@@ -407,7 +308,6 @@ const rowSelection = reactive({
 const createModalVisible = ref(false)
 const editModalVisible = ref(false)
 const detailVisible = ref(false)
-const ordersVisible = ref(false)
 const currentCustomer = ref(null)
 const currentEditCustomer = ref(null)
 
@@ -417,27 +317,57 @@ const editFormRef = ref()
 
 // 创建客户表单
 const createForm = reactive({
-  name: '',
+  username: '',
+  password: '',
+  confirmPassword: '',
+  realName: '',
   phone: '',
   email: '',
-  address: '',
-  remark: ''
+  address: ''
 })
 
 // 编辑客户表单
 const editForm = reactive({
-  name: '',
+  realName: '',
   phone: '',
   email: '',
-  address: '',
-  remark: ''
+  address: ''
 })
 
 // 表单验证规则
 const formRules = {
-  name: [{ required: true, message: '请输入客户姓名' }],
+  username: [
+    { required: true, message: '请输入用户名' },
+    { min: 3, max: 50, message: '用户名长度为3-50字符' },
+    { pattern: /^[a-zA-Z0-9_]+$/, message: '用户名只能包含字母、数字、下划线' }
+  ],
+  password: [
+    { required: true, message: '请输入密码' },
+    { min: 6, max: 20, message: '密码长度为6-20字符' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认密码' },
+    { 
+      validator: (rule, value) => {
+        if (value !== createForm.password) {
+          return Promise.reject('两次输入的密码不一致')
+        }
+        return Promise.resolve()
+      }
+    }
+  ],
   phone: [
     { required: true, message: '请输入联系电话' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
+  ],
+  email: [
+    { type: 'email', message: '请输入正确的邮箱地址' }
+  ]
+}
+
+// 编辑表单验证规则
+const editFormRules = {
+  phone: [
     { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
   ],
   email: [
@@ -448,30 +378,21 @@ const formRules = {
 // 初始化
 onMounted(() => {
   fetchCustomers()
-  fetchStats()
 })
 
-// 获取客户统计
-const fetchStats = async () => {
-  try {
-    const { data } = await getCustomerStatsApi()
-    stats.value = data
-  } catch (error) {
-    console.error('获取统计信息失败:', error)
-  }
-}
+
 
 // 获取客户列表
 const fetchCustomers = async () => {
   loading.value = true
   try {
     const { data } = await getCustomersApi({
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize
-    })
+    page: pagination.current,
+    size: pagination.pageSize
+  })
     
-    customers.value = data.list
-    pagination.total = data.total
+    customers.value = data.list || []
+    pagination.total = data.total || 0
   } catch (error) {
     Message.error('获取客户列表失败')
   } finally {
@@ -485,21 +406,21 @@ const handleSearch = async () => {
   try {
     const params = {
       ...searchForm,
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize
+      page: pagination.current,
+      size: pagination.pageSize
     }
     
-    // 处理时间范围
-    if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      params.startTime = dayjs(searchForm.timeRange[0]).format('YYYY-MM-DD HH:mm:ss')
-      params.endTime = dayjs(searchForm.timeRange[1]).format('YYYY-MM-DD HH:mm:ss')
-    }
-    delete params.timeRange
+    // 过滤空值
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key]
+      }
+    })
     
     const { data } = await searchCustomersApi(params)
     
-    customers.value = data.list
-    pagination.total = data.total
+    customers.value = data.records || []
+    pagination.total = data.total || 0
   } catch (error) {
     Message.error('搜索客户失败')
   } finally {
@@ -510,11 +431,7 @@ const handleSearch = async () => {
 // 重置搜索
 const handleReset = () => {
   Object.keys(searchForm).forEach(key => {
-    if (key === 'timeRange') {
-      searchForm[key] = []
-    } else {
-      searchForm[key] = ''
-    }
+    searchForm[key] = ''
   })
   pagination.current = 1
   fetchCustomers()
@@ -543,15 +460,15 @@ const handleCreate = async () => {
     const valid = await createFormRef.value.validate()
     if (!valid) return
     
+    // 调用注册接口
     await createCustomerApi(createForm)
     Message.success('创建成功')
     createModalVisible.value = false
-    resetCreateForm()
-    fetchCustomers()
-    fetchStats()
-  } catch (error) {
-    Message.error(error.message || '创建失败')
-  }
+     resetCreateForm()
+     await fetchCustomers()
+   } catch (error) {
+     Message.error(error.message || '创建失败')
+   }
 }
 
 // 重置创建表单
@@ -566,11 +483,10 @@ const resetCreateForm = () => {
 const showEditModal = (customer) => {
   currentEditCustomer.value = customer
   Object.assign(editForm, {
-    name: customer.name,
-    phone: customer.phone,
-    email: customer.email,
-    address: customer.address,
-    remark: customer.remark
+    realName: customer.realName || '',
+    phone: customer.phone || '',
+    email: customer.email || '',
+    address: customer.address || ''
   })
   editModalVisible.value = true
   detailVisible.value = false
@@ -610,7 +526,6 @@ const deleteCustomer = (id) => {
         await deleteCustomerApi(id)
         Message.success('删除成功')
         fetchCustomers()
-        fetchStats()
       } catch (error) {
         Message.error(error.message || '删除失败')
       }
@@ -629,7 +544,6 @@ const handleBatchDelete = () => {
         Message.success('批量删除成功')
         selectedRowKeys.value = []
         fetchCustomers()
-        fetchStats()
       } catch (error) {
         Message.error(error.message || '批量删除失败')
       }
@@ -648,17 +562,7 @@ const showDetail = async (customer) => {
   }
 }
 
-// 查看客户订单
-const showCustomerOrders = async (customer) => {
-  try {
-    const { data } = await getCustomerOrdersApi(customer.id)
-    customerOrders.value = data.list || []
-    ordersVisible.value = true
-    detailVisible.value = false
-  } catch (error) {
-    Message.error('获取客户订单失败')
-  }
-}
+
 
 // 导出数据
 const handleExport = async () => {
@@ -690,32 +594,6 @@ const handleExport = async () => {
 }
 
 // 工具函数
-const getOrderStatusColor = (status) => {
-  const colors = {
-    1: 'orange',   // 待支付
-    2: 'blue',     // 已支付
-    3: 'cyan',     // 待发货
-    4: 'purple',   // 已发货
-    5: 'lime',     // 已收货
-    6: 'green',    // 已完成
-    7: 'red'       // 已取消
-  }
-  return colors[status] || 'gray'
-}
-
-const getOrderStatusText = (status) => {
-  const texts = {
-    1: '待支付',
-    2: '已支付',
-    3: '待发货',
-    4: '已发货',
-    5: '已收货',
-    6: '已完成',
-    7: '已取消'
-  }
-  return texts[status] || '未知'
-}
-
 const formatDateTime = (dateTime) => {
   return dayjs(dateTime).format('YYYY-MM-DD HH:mm:ss')
 }

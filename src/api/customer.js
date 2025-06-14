@@ -7,9 +7,9 @@ import request from './request'
  * @param {number} params.pageSize - 每页数量
  * @returns {Promise}
  */
-export const getCustomersApi = (params = {}) => {
+export const getCustomersApi = (params) => {
   return request({
-    url: '/api/customers',
+    url: '/customers',
     method: 'get',
     params
   })
@@ -27,7 +27,7 @@ export const getCustomersApi = (params = {}) => {
  */
 export const searchCustomersApi = (params) => {
   return request({
-    url: '/api/customers/search',
+    url: '/customers/search',
     method: 'get',
     params
   })
@@ -40,24 +40,26 @@ export const searchCustomersApi = (params) => {
  */
 export const getCustomerDetailApi = (id) => {
   return request({
-    url: `/api/customers/${id}`,
+    url: `/customers/${id}`,
     method: 'get'
   })
 }
 
 /**
- * 创建客户
+ * 创建客户（注册）
  * @param {Object} data - 客户数据
- * @param {string} data.name - 客户姓名
+ * @param {string} data.username - 用户名
+ * @param {string} data.password - 密码
+ * @param {string} data.confirmPassword - 确认密码
  * @param {string} data.phone - 客户电话
  * @param {string} data.email - 客户邮箱
+ * @param {string} data.realName - 真实姓名
  * @param {string} data.address - 客户地址
- * @param {string} data.remark - 备注
  * @returns {Promise}
  */
 export const createCustomerApi = (data) => {
   return request({
-    url: '/api/customers',
+    url: '/customers/register',
     method: 'post',
     data
   })
@@ -71,7 +73,7 @@ export const createCustomerApi = (data) => {
  */
 export const updateCustomerApi = (id, data) => {
   return request({
-    url: `/api/customers/${id}`,
+    url: `/customers/${id}`,
     method: 'put',
     data
   })
@@ -84,7 +86,7 @@ export const updateCustomerApi = (id, data) => {
  */
 export const deleteCustomerApi = (id) => {
   return request({
-    url: `/api/customers/${id}`,
+    url: `/customers/${id}`,
     method: 'delete'
   })
 }
@@ -96,36 +98,15 @@ export const deleteCustomerApi = (id) => {
  */
 export const batchDeleteCustomersApi = (ids) => {
   return request({
-    url: '/api/customers/batch',
+    url: '/customers/batch',
     method: 'delete',
     data: { ids }
   })
 }
 
-/**
- * 获取客户统计信息
- * @returns {Promise}
- */
-export const getCustomerStatsApi = () => {
-  return request({
-    url: '/api/customers/stats',
-    method: 'get'
-  })
-}
 
-/**
- * 获取客户订单历史
- * @param {number} customerId - 客户ID
- * @param {Object} params - 查询参数
- * @returns {Promise}
- */
-export const getCustomerOrdersApi = (customerId, params = {}) => {
-  return request({
-    url: `/api/customers/${customerId}/orders`,
-    method: 'get',
-    params
-  })
-}
+
+
 
 /**
  * 导出客户数据
@@ -134,7 +115,7 @@ export const getCustomerOrdersApi = (customerId, params = {}) => {
  */
 export const exportCustomersApi = (params = {}) => {
   return request({
-    url: '/api/customers/export',
+    url: '/customers/export',
     method: 'get',
     params,
     responseType: 'blob'
