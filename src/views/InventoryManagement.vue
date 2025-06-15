@@ -83,6 +83,8 @@
         :loading="loading"
         :pagination="pagination"
         :row-selection="rowSelection"
+        v-model:selectedKeys="selectedRowKeys"
+        @selection-change="onSelectionChange"
         @page-change="handlePageChange"
         @page-size-change="handlePageSizeChange"
         row-key="id"
@@ -216,15 +218,23 @@
       @cancel="resetBatchUpdateForm"
     >
       <a-form :model="batchUpdateForm" layout="vertical" ref="batchUpdateFormRef">
+        <a-form-item label="选中的商品数量">
+          <a-input v-model="batchUpdateForm.selectedCount" disabled />
+        </a-form-item>
         <a-form-item label="选中的商品ID">
-          <a-input :value="selectedRowKeys.join(', ')" disabled />
+          <a-input v-model="batchUpdateForm.selectedProductIds" disabled />
         </a-form-item>
         <a-form-item label="库存变化量" required>
           <a-input-number 
             v-model="batchUpdateForm.stockChange" 
             placeholder="正数为增加，负数为减少" 
+            style="width: 100%" 
           />
         </a-form-item>
+        <a-divider />
+        <div style="color: #666; font-size: 12px;">
+          调试信息: {{ batchUpdateForm }}
+        </div>
       </a-form>
     </a-modal>
 
@@ -397,7 +407,7 @@ const selectedRowKeys = ref([])
 const rowSelection = reactive({
   type: 'checkbox',
   showCheckedAll: true,
-  onlyCurrent: false,
+  onlyCurrent: false
 })
 
 // 模态框控制
@@ -441,6 +451,8 @@ const thresholdUpdateForm = reactive({
 
 // 批量更新表单
 const batchUpdateForm = reactive({
+  selectedProductIds: [],
+  selectedCount: 0,
   stockChange: null
 })
 
@@ -692,6 +704,17 @@ const resetThresholdUpdateForm = () => {
 
 // 显示批量更新模态框
 const showBatchUpdateModal = () => {
+  // 获取选中的商品ID
+  const selectedInventories = inventories.value.filter(item => selectedRowKeys.value.includes(item.id))
+  
+  // 设置表单初始值
+  batchUpdateForm.selectedProductIds = selectedInventories.map(item => item.productId)
+  batchUpdateForm.selectedCount = selectedRowKeys.value.length
+  batchUpdateForm.stockChange = null
+  
+  console.log('📦 批量更新 - 选中的库存记录:', selectedInventories)
+  console.log('📝 批量更新 - 表单初始值:', batchUpdateForm)
+  
   batchUpdateModalVisible.value = true
 }
 
@@ -703,9 +726,13 @@ const handleBatchUpdate = async () => {
       return
     }
     
-    const stockChanges = new Array(selectedRowKeys.value.length).fill(batchUpdateForm.stockChange)
+    // 使用商品ID而不是库存记录ID
+    const stockChanges = new Array(batchUpdateForm.selectedProductIds.length).fill(batchUpdateForm.stockChange)
     
-    await batchUpdateInventoryApi(selectedRowKeys.value, stockChanges)
+    console.log('📦 批量更新 - 使用商品IDs:', batchUpdateForm.selectedProductIds)
+    console.log('📦 批量更新 - 库存变化量:', stockChanges)
+    
+    await batchUpdateInventoryApi(batchUpdateForm.selectedProductIds, stockChanges)
     
     Message.success('批量更新成功')
     batchUpdateModalVisible.value = false
@@ -719,6 +746,8 @@ const handleBatchUpdate = async () => {
 
 // 重置批量更新表单
 const resetBatchUpdateForm = () => {
+  batchUpdateForm.selectedProductIds = []
+  batchUpdateForm.selectedCount = 0
   batchUpdateForm.stockChange = null
   batchUpdateFormRef.value?.resetFields()
 }
@@ -818,6 +847,12 @@ const handleLowStockPageSizeChange = (pageSize) => {
   lowStockPagination.pageSize = pageSize
   lowStockPagination.current = 1
   fetchLowStockList()
+}
+
+// 表格选择变化处理
+const onSelectionChange = (selectedKeys) => {
+  selectedRowKeys.value = selectedKeys
+  console.log('🔄 选择变化:', selectedKeys)
 }
 
 // 工具函数
