@@ -22,6 +22,10 @@
             <template #icon><icon-user /></template>
             客户管理
           </a-menu-item>
+          <a-menu-item key="inventory" @click="$router.push('/inventory')">
+            <template #icon><icon-storage /></template>
+            库存管理
+          </a-menu-item>
           <a-menu-item key="delivery" @click="$router.push('/delivery')">
             <template #icon><icon-truck /></template>
             配送管理
@@ -49,6 +53,7 @@ const currentRoute = computed(() => {
   if (path.includes('/products')) return 'products'
   if (path.includes('/orders')) return 'orders'
   if (path.includes('/customers')) return 'customers'
+  if (path.includes('/inventory')) return 'inventory'
   if (path.includes('/delivery')) return 'delivery'
   if (path.includes('/statistics')) return 'statistics'
   return 'products'
