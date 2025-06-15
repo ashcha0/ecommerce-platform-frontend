@@ -4,6 +4,7 @@ import OrderManagement from '@/views/OrderManagement.vue'
 import CustomerManagement from '@/views/CustomerManagement.vue'
 import DeliveryManagement from '@/views/DeliveryManagement.vue'
 import StatisticsAnalysis from '@/views/StatisticsAnalysis.vue'
+import InventoryManagement from '@/views/InventoryManagement.vue'
 
 const routes = [
   {
@@ -48,6 +49,14 @@ const routes = [
     component: StatisticsAnalysis,
     meta: {
       title: '统计分析'
+    }
+  },
+  {
+    path: '/inventory',
+    name: 'InventoryManagement',
+    component: InventoryManagement,
+    meta: {
+      title: '库存管理'
     }
   }
 ]
