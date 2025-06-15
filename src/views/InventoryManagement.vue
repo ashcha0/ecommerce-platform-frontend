@@ -231,10 +231,6 @@
             style="width: 100%" 
           />
         </a-form-item>
-        <a-divider />
-        <div style="color: #666; font-size: 12px;">
-          调试信息: {{ batchUpdateForm }}
-        </div>
       </a-form>
     </a-modal>
 
@@ -712,9 +708,6 @@ const showBatchUpdateModal = () => {
   batchUpdateForm.selectedCount = selectedRowKeys.value.length
   batchUpdateForm.stockChange = null
   
-  console.log('📦 批量更新 - 选中的库存记录:', selectedInventories)
-  console.log('📝 批量更新 - 表单初始值:', batchUpdateForm)
-  
   batchUpdateModalVisible.value = true
 }
 
@@ -728,9 +721,6 @@ const handleBatchUpdate = async () => {
     
     // 使用商品ID而不是库存记录ID
     const stockChanges = new Array(batchUpdateForm.selectedProductIds.length).fill(batchUpdateForm.stockChange)
-    
-    console.log('📦 批量更新 - 使用商品IDs:', batchUpdateForm.selectedProductIds)
-    console.log('📦 批量更新 - 库存变化量:', stockChanges)
     
     await batchUpdateInventoryApi(batchUpdateForm.selectedProductIds, stockChanges)
     
@@ -852,7 +842,6 @@ const handleLowStockPageSizeChange = (pageSize) => {
 // 表格选择变化处理
 const onSelectionChange = (selectedKeys) => {
   selectedRowKeys.value = selectedKeys
-  console.log('🔄 选择变化:', selectedKeys)
 }
 
 // 工具函数
