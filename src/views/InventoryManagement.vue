@@ -162,16 +162,16 @@
     <a-modal 
       v-model:visible="stockUpdateModalVisible" 
       title="调整库存"
-      width="400px"
+      width="500px"
       @ok="handleStockUpdate"
       @cancel="resetStockUpdateForm"
     >
       <a-form :model="stockUpdateForm" :rules="stockUpdateFormRules" layout="vertical" ref="stockUpdateFormRef">
         <a-form-item label="商品ID">
-          <a-input :value="currentInventory?.productId" disabled />
+          <a-input v-model="stockUpdateForm.productId" disabled />
         </a-form-item>
         <a-form-item label="当前库存">
-          <a-input :value="currentInventory?.stock" disabled />
+          <a-input-number v-model="stockUpdateForm.currentStock" disabled />
         </a-form-item>
         <a-form-item label="库存变化量" field="stockChange" required>
           <a-input-number 
@@ -186,16 +186,16 @@
     <a-modal 
       v-model:visible="thresholdUpdateModalVisible" 
       title="设置低库存阈值"
-      width="400px"
+      width="500px"
       @ok="handleThresholdUpdate"
       @cancel="resetThresholdUpdateForm"
     >
       <a-form :model="thresholdUpdateForm" :rules="thresholdUpdateFormRules" layout="vertical" ref="thresholdUpdateFormRef">
         <a-form-item label="商品ID">
-          <a-input :value="currentInventory?.productId" disabled />
+          <a-input v-model="thresholdUpdateForm.productId" disabled />
         </a-form-item>
         <a-form-item label="当前阈值">
-          <a-input :value="currentInventory?.lowStockThreshold" disabled />
+          <a-input-number v-model="thresholdUpdateForm.currentThreshold" disabled />
         </a-form-item>
         <a-form-item label="新阈值" field="threshold" required>
           <a-input-number 
@@ -238,19 +238,19 @@
       <div v-if="currentInventory" class="inventory-detail">
         <a-descriptions title="库存信息" :column="1" bordered>
           <a-descriptions-item label="库存ID">
-            {{ currentInventory.id }}
+            {{ currentInventory?.id || '' }}
           </a-descriptions-item>
           <a-descriptions-item label="商品ID">
-            {{ currentInventory.productId }}
+            {{ currentInventory?.productId || '' }}
           </a-descriptions-item>
           <a-descriptions-item label="当前库存">
-            <a-tag :color="getStockColor(currentInventory)">{{ currentInventory.stock }}</a-tag>
+            <a-tag :color="getStockColor(currentInventory)">{{ currentInventory?.stock || 0 }}</a-tag>
           </a-descriptions-item>
           <a-descriptions-item label="低库存阈值">
-            {{ currentInventory.lowStockThreshold }}
+            {{ currentInventory?.lowStockThreshold || 0 }}
           </a-descriptions-item>
           <a-descriptions-item label="库存状态">
-            <a-tag v-if="currentInventory.stock <= currentInventory.lowStockThreshold" color="red">
+            <a-tag v-if="currentInventory && currentInventory.stock <= currentInventory.lowStockThreshold" color="red">
               <icon-exclamation-circle /> 低库存预警
             </a-tag>
             <a-tag v-else color="green">
@@ -258,7 +258,7 @@
             </a-tag>
           </a-descriptions-item>
           <a-descriptions-item label="更新时间">
-            {{ formatDateTime(currentInventory.updateTime) }}
+            {{ currentInventory?.updateTime ? formatDateTime(currentInventory.updateTime) : '' }}
           </a-descriptions-item>
         </a-descriptions>
 
@@ -355,7 +355,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, nextTick } from 'vue'
 import {
   createInventoryApi,
   getInventoryByProductIdApi,
@@ -427,11 +427,15 @@ const createForm = reactive({
 
 // 库存调整表单
 const stockUpdateForm = reactive({
+  productId: null,
+  currentStock: null,
   stockChange: null
 })
 
 // 阈值设置表单
 const thresholdUpdateForm = reactive({
+  productId: null,
+  currentThreshold: null,
   threshold: null
 })
 
@@ -601,8 +605,16 @@ const resetCreateForm = () => {
 }
 
 // 显示库存调整模态框
-const showStockUpdateModal = (inventory) => {
+const showStockUpdateModal = async (inventory) => {
   currentInventory.value = inventory
+  
+  // 设置表单初始值
+  stockUpdateForm.productId = inventory.productId
+  stockUpdateForm.currentStock = inventory.stock
+  stockUpdateForm.stockChange = null
+  
+  await nextTick() // 确保响应式更新
+  
   stockUpdateModalVisible.value = true
   detailVisible.value = false
 }
@@ -629,14 +641,23 @@ const handleStockUpdate = async () => {
 
 // 重置库存调整表单
 const resetStockUpdateForm = () => {
+  stockUpdateForm.productId = null
+  stockUpdateForm.currentStock = null
   stockUpdateForm.stockChange = null
   stockUpdateFormRef.value?.resetFields()
 }
 
 // 显示阈值设置模态框
-const showThresholdUpdateModal = (inventory) => {
+const showThresholdUpdateModal = async (inventory) => {
   currentInventory.value = inventory
+
+  // 设置表单初始值
+  thresholdUpdateForm.productId = inventory.productId
+  thresholdUpdateForm.currentThreshold = inventory.lowStockThreshold
   thresholdUpdateForm.threshold = inventory.lowStockThreshold
+  
+  await nextTick() // 确保响应式更新
+  
   thresholdUpdateModalVisible.value = true
   detailVisible.value = false
 }
@@ -663,6 +684,8 @@ const handleThresholdUpdate = async () => {
 
 // 重置阈值设置表单
 const resetThresholdUpdateForm = () => {
+  thresholdUpdateForm.productId = null
+  thresholdUpdateForm.currentThreshold = null
   thresholdUpdateForm.threshold = null
   thresholdUpdateFormRef.value?.resetFields()
 }
@@ -803,6 +826,9 @@ const formatDateTime = (dateTime) => {
 }
 
 const getStockColor = (record) => {
+  if (!record || record.stock === undefined || record.lowStockThreshold === undefined) {
+    return 'gray'
+  }
   if (record.stock <= record.lowStockThreshold) {
     return 'red'
   } else if (record.stock <= record.lowStockThreshold * 2) {
