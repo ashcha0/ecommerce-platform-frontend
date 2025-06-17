@@ -476,20 +476,15 @@ const createRules = {
     {
       required: true,
       validator: (value, callback) => {
-        console.log('🔍 验证商品项:', value)
         if (!value || value.length === 0) {
-          console.warn('⚠️ 商品项为空')
           callback('请至少添加一个商品')
           return
         }
         const validItems = value.filter(item => item.productId && item.quantity > 0)
-        console.log('✅ 有效商品项:', validItems)
         if (validItems.length === 0) {
-          console.warn('⚠️ 没有有效的商品项')
           callback('请至少添加一个有效的商品')
           return
         }
-        console.log('✅ 商品项验证通过')
         callback()
       }
     }
@@ -538,55 +533,18 @@ const loadOrders = async () => {
       }
     })
     
-    console.log('📤 发送订单查询请求，参数:', JSON.stringify(params, null, 2))
-    
     const response = await searchOrdersApi(params)
-    
-    console.log('📥 订单查询响应:', {
-      code: response?.code,
-      message: response?.message,
-      dataType: typeof response?.data,
-      dataKeys: response?.data ? Object.keys(response.data) : [],
-      fullResponse: response
-    })
     
     if (response.code === 200) {
       // 处理嵌套的PageResult数据结构
       const pageData = response.data.data || response.data
       
-      console.log('📊 解析后的分页数据:', {
-        pageDataType: typeof pageData,
-        pageDataKeys: pageData ? Object.keys(pageData) : [],
-        listLength: pageData?.list?.length || pageData?.records?.length || 0,
-        total: pageData?.total || 0,
-        pageData: pageData
-      })
-      
       orders.value = pageData.list || pageData.records || []
       pagination.total = pageData.total || 0
-      
-      console.log('✅ 订单数据加载成功:', {
-        ordersCount: orders.value.length,
-        totalCount: pagination.total,
-        currentPage: pagination.current,
-        pageSize: pagination.pageSize
-      })
     } else {
-      console.warn('⚠️ 订单查询返回非200状态码:', {
-        code: response.code,
-        message: response.message,
-        data: response.data
-      })
       Message.error(response.message || '获取订单列表失败')
     }
   } catch (error) {
-    console.error('❌ 加载订单列表失败:', {
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorResponse: error.response,
-      requestConfig: error.config,
-      fullError: error
-    })
     Message.error(`加载订单列表失败: ${error.message || '未知错误'}`)
   } finally {
     loading.value = false
@@ -605,7 +563,6 @@ const loadCustomers = async (visible) => {
       customers.value = customerData.list || customerData.records || customerData || []
     }
   } catch (error) {
-    console.error('加载客户列表失败:', error)
     Message.error('加载客户列表失败')
   } finally {
     customersLoading.value = false
@@ -624,7 +581,6 @@ const loadProducts = async (visible) => {
       products.value = productData.list || productData.records || productData || []
     }
   } catch (error) {
-    console.error('加载商品列表失败:', error)
     Message.error('加载商品列表失败')
   } finally {
     productsLoading.value = false
@@ -740,23 +696,9 @@ const calculateTotalAmount = () => {
 
 const handleCreateOrder = async () => {
   try {
-    console.log('📝 开始创建订单，验证表单...')
-    console.log('📋 当前表单数据:', {
-      customerId: createForm.customerId,
-      consigneeName: createForm.consigneeName,
-      consigneePhone: createForm.consigneePhone,
-      deliveryAddress: createForm.deliveryAddress,
-      items: createForm.items,
-      remark: createForm.remark
-    })
-    
     try {
-      const valid = await createFormRef.value?.validate()
-      console.log('✅ 表单验证通过')
+      await createFormRef.value?.validate()
     } catch (error) {
-      console.warn('⚠️ 表单验证失败')
-      console.log('📋 验证失败的表单数据详情:', createForm)
-      console.log('❌ 验证错误详情:', error)
       return
     }
     
@@ -765,127 +707,71 @@ const handleCreateOrder = async () => {
       items: createForm.items.filter(item => item.productId && item.quantity > 0)
     }
     
-    console.log('📋 准备创建订单数据:', {
-      customerInfo: {
-        customerId: orderData.customerId,
-        consigneeName: orderData.consigneeName,
-        consigneePhone: orderData.consigneePhone,
-        deliveryAddress: orderData.deliveryAddress
-      },
-      itemsCount: orderData.items.length,
-      items: orderData.items,
-      remark: orderData.remark,
-      fullOrderData: orderData
-    })
-    
     if (orderData.items.length === 0) {
-      console.warn('⚠️ 没有有效的商品项')
       Message.error('请至少添加一个商品')
       return
     }
     
-    console.log('📤 发送创建订单请求...')
     const response = await createOrderApi(orderData)
-    
-    console.log('📥 创建订单响应:', {
-      code: response?.code,
-      message: response?.message,
-      data: response?.data,
-      fullResponse: response
-    })
     
     if (response.code === 200) {
       Message.success('订单创建成功')
       createModalVisible.value = false
       resetCreateForm()
       loadOrders()
-      console.log('✅ 订单创建成功，订单ID:', response.data?.orderId || '未知')
     } else {
-      console.warn('⚠️ 订单创建失败:', response)
-      Message.error(response.message || '创建订单失败')
+      // 针对不同错误类型显示相应提示
+      if (response.message && response.message.includes('库存不足')) {
+        Message.error('商品库存不足，请减少购买数量或选择其他商品')
+      } else if (response.message && response.message.includes('商品不存在')) {
+        Message.error('所选商品不存在，请重新选择')
+      } else {
+        Message.error(response.message || '创建订单失败')
+      }
     }
   } catch (error) {
-    console.error('❌ 创建订单异常:', {
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorResponse: error.response,
-      requestData: createForm,
-      fullError: error
-    })
-    Message.error(`创建订单失败: ${error.message || '未知错误'}`)
+    // 处理网络错误或其他异常
+    if (error.message && error.message.includes('库存不足')) {
+      Message.error('商品库存不足，请减少购买数量或选择其他商品')
+    } else {
+      Message.error(`创建订单失败: ${error.message || '网络错误，请稍后重试'}`)
+    }
   }
 }
 
 const showDetail = async (order) => {
   try {
-    console.log('📋 开始加载订单详情:', { orderId: order.orderId, orderData: order })
-    
     currentOrder.value = order
     detailDrawerVisible.value = true
     
     // 加载订单详情
-    console.log('📤 请求订单详情 API:', order.orderId)
     const detailResponse = await getOrderDetailApi(order.orderId)
-    console.log('📥 订单详情响应:', {
-      code: detailResponse?.code,
-      message: detailResponse?.message,
-      dataKeys: detailResponse?.data ? Object.keys(detailResponse.data) : [],
-      data: detailResponse?.data
-    })
     
     if (detailResponse.code === 200) {
       currentOrder.value = detailResponse.data
-      console.log('✅ 订单详情加载成功')
     } else {
-      console.warn('⚠️ 订单详情获取失败:', detailResponse)
       Message.error(detailResponse.message || '获取订单详情失败')
     }
     
     // 加载商品明细
-    console.log('📤 请求订单商品明细 API:', order.orderId)
     itemsLoading.value = true
     const itemsResponse = await getOrderItemsApi(order.orderId)
-    console.log('📥 订单商品明细响应:', {
-      code: itemsResponse?.code,
-      message: itemsResponse?.message,
-      dataKeys: itemsResponse?.data ? Object.keys(itemsResponse.data) : [],
-      itemsCount: itemsResponse?.data?.items?.length || 0,
-      data: itemsResponse?.data
-    })
     
     if (itemsResponse.code === 200) {
       orderItems.value = itemsResponse.data.items || []
-      console.log('✅ 订单商品明细加载成功:', orderItems.value.length + '个商品')
     } else {
-      console.warn('⚠️ 订单商品明细获取失败:', itemsResponse)
       Message.error(itemsResponse.message || '获取订单商品明细失败')
     }
     
     // 加载配送信息
-    console.log('📤 请求订单配送信息 API:', order.orderId)
     const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
-    console.log('📥 订单配送信息响应:', {
-      code: deliveryResponse?.code,
-      message: deliveryResponse?.message,
-      dataKeys: deliveryResponse?.data ? Object.keys(deliveryResponse.data) : [],
-      data: deliveryResponse?.data
-    })
     
     if (deliveryResponse.code === 200) {
       deliveryInfo.value = deliveryResponse.data
-      console.log('✅ 订单配送信息加载成功')
     } else {
-      console.warn('⚠️ 订单配送信息获取失败:', deliveryResponse)
       Message.error(deliveryResponse.message || '获取订单配送信息失败')
     }
   } catch (error) {
-    console.error('❌ 加载订单详情失败:', {
-      orderId: order.orderId,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorResponse: error.response,
-      fullError: error
-    })
     Message.error(`加载订单详情失败: ${error.message || '未知错误'}`)
   } finally {
     itemsLoading.value = false
@@ -894,24 +780,13 @@ const showDetail = async (order) => {
 
 const handleStatusAction = async (order, action) => {
   try {
-    console.log('🔄 开始执行订单状态操作:', {
-      orderId: order.orderId,
-      action: action,
-      currentStatus: order.orderStatus,
-      orderData: order
-    })
-    
     let response
     switch (action) {
       case 'pay':
-        console.log('💳 执行订单支付操作:', order.orderId)
         response = await payOrderApi(order.orderId)
-        console.log('📥 支付操作响应:', response)
         break
       case 'confirm':
-        console.log('✅ 执行订单确认操作:', order.orderId)
         response = await confirmOrderApi(order.orderId)
-        console.log('📥 确认操作响应:', response)
         break
       case 'cancel':
         Modal.confirm({
@@ -919,35 +794,21 @@ const handleStatusAction = async (order, action) => {
           content: '取消后订单无法恢复，确定要取消吗？',
           onOk: async () => {
             try {
-              console.log('❌ 执行订单取消操作:', order.orderId)
               const cancelResponse = await cancelOrderApi(order.orderId)
-              console.log('📥 取消操作响应:', cancelResponse)
               
               if (cancelResponse.code === 200) {
                 Message.success('订单已取消')
                 loadOrders()
-                console.log('✅ 订单取消成功')
               } else {
-                console.warn('⚠️ 订单取消失败:', cancelResponse)
                 Message.error(cancelResponse.message || '取消订单失败')
               }
             } catch (error) {
-              console.error('❌ 取消订单异常:', {
-                orderId: order.orderId,
-                errorMessage: error.message,
-                errorResponse: error.response,
-                fullError: error
-              })
               Message.error(`取消订单失败: ${error.message || '未知错误'}`)
             }
           }
         })
         return
       case 'updateStatus':
-        console.log('📝 打开状态更新弹窗:', {
-          orderId: order.orderId,
-          currentStatus: order.orderStatus
-        })
         statusForm.orderId = order.orderId
         statusForm.currentStatus = order.orderStatus
         statusForm.newStatus = ''
@@ -958,69 +819,32 @@ const handleStatusAction = async (order, action) => {
     if (response && response.code === 200) {
       Message.success('操作成功')
       loadOrders()
-      console.log('✅ 订单状态操作成功:', { action, orderId: order.orderId })
     } else if (response) {
-      console.warn('⚠️ 订单状态操作失败:', {
-        action,
-        orderId: order.orderId,
-        response: response
-      })
       Message.error(response.message || '操作失败')
     }
   } catch (error) {
-    console.error('❌ 订单状态操作异常:', {
-      action,
-      orderId: order.orderId,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorResponse: error.response,
-      fullError: error
-    })
     Message.error(`操作失败: ${error.message || '未知错误'}`)
   }
 }
 
 const handleUpdateStatus = async () => {
   try {
-    console.log('📝 开始更新订单状态:', {
+    const response = await updateOrderStatusApi({
       orderId: statusForm.orderId,
-      currentStatus: statusForm.currentStatus,
-      newStatus: statusForm.newStatus,
-      formData: statusForm
-    })
-    
-    const response = await updateOrderStatusApi(statusForm.orderId, statusForm.newStatus)
-    
-    console.log('📥 状态更新响应:', {
-      code: response?.code,
-      message: response?.message,
-      data: response?.data,
-      fullResponse: response
+      orderStatus: statusForm.newStatus,
+      remark: statusForm.remark
     })
     
     if (response.code === 200) {
-      Message.success('状态更新成功')
       statusModalVisible.value = false
       resetStatusForm()
       loadOrders()
-      console.log('✅ 订单状态更新成功:', {
-        orderId: statusForm.orderId,
-        newStatus: statusForm.newStatus
-      })
+      Message.success('订单状态更新成功')
     } else {
-      console.warn('⚠️ 订单状态更新失败:', response)
-      Message.error(response.message || '状态更新失败')
+      Message.error(response.message || '更新订单状态失败')
     }
   } catch (error) {
-    console.error('❌ 更新订单状态异常:', {
-      orderId: statusForm.orderId,
-      newStatus: statusForm.newStatus,
-      errorMessage: error.message,
-      errorStack: error.stack,
-      errorResponse: error.response,
-      fullError: error
-    })
-    Message.error(`状态更新失败: ${error.message || '未知错误'}`)
+    Message.error(`更新订单状态失败: ${error.message || '未知错误'}`)
   }
 }
 
@@ -1040,7 +864,6 @@ const showStatsModal = async () => {
       statsModalVisible.value = true
     }
   } catch (error) {
-    console.error('加载统计数据失败:', error)
     Message.error('加载统计数据失败')
   }
 }
@@ -1069,7 +892,6 @@ const handleExport = async () => {
     
     Message.success('导出成功')
   } catch (error) {
-    console.error('导出失败:', error)
     Message.error('导出失败')
   }
 }
