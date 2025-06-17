@@ -1,7 +1,7 @@
 import request from './request'
 
 // 订单管理API
-const ORDER_API = '/api/orders'
+const ORDER_API = '/orders'
 
 /**
  * 查询订单列表
@@ -125,8 +125,8 @@ export const getOrderStatusStatsApi = () => {
  * 获取客户列表
  * @returns {Promise}
  */
-export const getCustomersApi = () => {
-  return request.get('/api/customers')
+export const getSimpleCustomersApi = () => {
+  return request.get('/customers/simple')
 }
 
 /**
@@ -134,7 +134,7 @@ export const getCustomersApi = () => {
  * @returns {Promise}
  */
 export const getSimpleProductsApi = () => {
-  return request.get('/api/products/simple')
+  return request.get('/products/simple')
 }
 
 /**
