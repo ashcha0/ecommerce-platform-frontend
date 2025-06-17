@@ -1,61 +1,9 @@
 <template>
   <div class="order-management">
-    <!-- 统计卡片区域 -->
-    <a-row :gutter="16" class="mb-20">
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="今日订单"
-            :value="stats.todayOrders"
-            :value-style="{ color: '#1890ff' }"
-          >
-            <template #prefix>
-              <icon-file-text />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="今日销售额"
-            :value="stats.todayAmount"
-            :precision="2"
-            :value-style="{ color: '#52c41a' }"
-          >
-            <template #prefix>
-              ¥
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="待处理订单"
-            :value="stats.pendingOrders"
-            :value-style="{ color: '#faad14' }"
-          >
-            <template #prefix>
-              <icon-clock-circle />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="总订单数"
-            :value="stats.totalOrders"
-            :value-style="{ color: '#722ed1' }"
-          >
-            <template #prefix>
-              <icon-bar-chart />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-    </a-row>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1>订单管理</h1>
+    </div>
 
     <!-- 搜索区域 -->
     <a-card class="search-card" title="订单搜索">
@@ -63,35 +11,23 @@
         <a-form-item label="订单号">
           <a-input v-model="searchForm.orderNo" placeholder="输入订单号" allow-clear />
         </a-form-item>
-        <a-form-item label="客户姓名">
-          <a-input v-model="searchForm.customerName" placeholder="输入客户姓名" allow-clear />
-        </a-form-item>
-        <a-form-item label="客户电话">
-          <a-input v-model="searchForm.customerPhone" placeholder="输入客户电话" allow-clear />
-        </a-form-item>
         <a-form-item label="订单状态">
-          <a-select v-model="searchForm.status" placeholder="请选择" allow-clear>
-            <a-option value="">全部</a-option>
-            <a-option :value="1">待支付</a-option>
-            <a-option :value="2">已支付</a-option>
-            <a-option :value="3">待发货</a-option>
-            <a-option :value="4">已发货</a-option>
-            <a-option :value="5">已收货</a-option>
-            <a-option :value="6">已完成</a-option>
-            <a-option :value="7">已取消</a-option>
+          <a-select v-model="searchForm.orderStatus" placeholder="选择订单状态" allow-clear>
+            <a-option value="">全部状态</a-option>
+            <a-option v-for="(text, status) in ORDER_STATUS_TEXT" :key="status" :value="status">
+              {{ text }}
+            </a-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="金额范围">
-          <a-input-number v-model="searchForm.minAmount" :min="0.01" placeholder="最低金额" />
-          <span class="price-separator">-</span>
-          <a-input-number v-model="searchForm.maxAmount" :min="0.01" placeholder="最高金额" />
+        <a-form-item label="客户ID">
+          <a-input-number v-model="searchForm.customerId" placeholder="输入客户ID" allow-clear />
         </a-form-item>
-        <a-form-item label="创建时间">
-          <a-range-picker
-            v-model="searchForm.timeRange"
+        <a-form-item label="下单时间">
+          <a-range-picker 
+            v-model="searchForm.timeRange" 
             show-time
             format="YYYY-MM-DD HH:mm:ss"
-            placeholder="[开始时间, 结束时间]"
+            @change="handleTimeRangeChange"
           />
         </a-form-item>
         <a-form-item>
@@ -116,14 +52,9 @@
           <template #icon><icon-plus /></template>
           新建订单
         </a-button>
-        <a-button 
-          type="outline" 
-          status="danger" 
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchDelete"
-        >
-          <template #icon><icon-delete /></template>
-          批量删除
+        <a-button @click="showStatsModal">
+          <template #icon><icon-bar-chart /></template>
+          订单统计
         </a-button>
       </div>
       <div>
@@ -140,106 +71,77 @@
         :data="orders" 
         :loading="loading"
         :pagination="pagination"
-        :row-selection="rowSelection"
         @page-change="handlePageChange"
         @page-size-change="handlePageSizeChange"
-        row-key="id"
+        row-key="orderId"
       >
         <template #columns>
-          <a-table-column title="订单号" data-index="orderNo" :width="160">
+          <a-table-column title="订单号" data-index="orderNo" :width="150">
             <template #cell="{ record }">
               <a-link @click="showDetail(record)">{{ record.orderNo }}</a-link>
             </template>
           </a-table-column>
-          <a-table-column title="客户信息" :width="150">
+          <a-table-column title="订单状态" data-index="orderStatus" :width="120">
             <template #cell="{ record }">
-              <div>
-                <div class="customer-name">{{ record.customerName }}</div>
-                <div class="customer-phone">{{ record.customerPhone }}</div>
-              </div>
+              <a-tag :color="ORDER_STATUS_COLOR[record.orderStatus]">
+                {{ ORDER_STATUS_TEXT[record.orderStatus] || record.orderStatus }}
+              </a-tag>
             </template>
           </a-table-column>
-          <a-table-column title="商品信息" :width="200">
+          <a-table-column title="下单时间" data-index="orderTime" :width="160">
             <template #cell="{ record }">
-              <div class="order-items">
-                <div 
-                  v-for="item in record.orderItems.slice(0, 2)" 
-                  :key="item.id"
-                  class="order-item"
-                >
-                  {{ item.productName }} × {{ item.quantity }}
-                </div>
-                <div v-if="record.orderItems.length > 2" class="more-items">
-                  等{{ record.orderItems.length }}件商品
-                </div>
-              </div>
+              {{ formatDateTime(record.orderTime) }}
             </template>
           </a-table-column>
           <a-table-column title="订单金额" data-index="totalAmount" :width="120">
             <template #cell="{ record }">
-              <span class="amount">¥{{ record.totalAmount.toFixed(2) }}</span>
+              <span class="amount-text">¥{{ record.totalAmount?.toFixed(2) || '0.00' }}</span>
             </template>
           </a-table-column>
-          <a-table-column title="订单状态" data-index="status" :width="100">
+          <a-table-column title="商品信息" data-index="products" :width="200">
             <template #cell="{ record }">
-              <a-tag :color="getStatusColor(record.status)" class="status-tag">
-                {{ getStatusText(record.status) }}
-              </a-tag>
+              <a-tooltip :content="record.products" :disabled="!record.products">
+                <span class="products-text">{{ record.products || '-' }}</span>
+              </a-tooltip>
             </template>
           </a-table-column>
-          <a-table-column title="创建时间" data-index="createTime" :width="160">
+          <a-table-column title="客户信息" data-index="customerName" :width="120">
             <template #cell="{ record }">
-              {{ formatDateTime(record.createTime) }}
+              {{ record.customerName || '-' }}
             </template>
           </a-table-column>
           <a-table-column title="操作" :width="200" fixed="right">
             <template #cell="{ record }">
               <a-space>
-                <a-link @click="showDetail(record)" size="small">
-                  <icon-eye /> 查看
-                </a-link>
-                <a-link 
-                  v-if="record.status === 1" 
-                  @click="showEditModal(record)" 
-                  size="small"
-                >
-                  <icon-edit /> 编辑
-                </a-link>
-                <a-dropdown>
-                  <a-link size="small">
-                    <icon-more /> 更多
-                  </a-link>
+                <a-button size="small" @click="showDetail(record)">
+                  详情
+                </a-button>
+                <a-dropdown @select="(value) => handleStatusAction(record, value)">
+                  <a-button size="small" type="outline">
+                    状态操作
+                    <icon-down />
+                  </a-button>
                   <template #content>
                     <a-doption 
-                      v-if="canUpdateStatus(record.status, 2)"
-                      @click="updateOrderStatus(record, 2)"
+                      v-if="record.orderStatus === 'PENDING_PAYMENT'" 
+                      value="pay"
                     >
-                      标记已支付
+                      支付订单
                     </a-doption>
                     <a-doption 
-                      v-if="canUpdateStatus(record.status, 4)"
-                      @click="updateOrderStatus(record, 4)"
+                      v-if="record.orderStatus === 'DELIVERED'" 
+                      value="confirm"
                     >
-                      标记已发货
+                      确认收货
                     </a-doption>
                     <a-doption 
-                      v-if="canUpdateStatus(record.status, 6)"
-                      @click="updateOrderStatus(record, 6)"
-                    >
-                      标记已完成
-                    </a-doption>
-                    <a-doption 
-                      v-if="record.status !== 7"
-                      @click="updateOrderStatus(record, 7)"
+                      v-if="['PENDING_PAYMENT', 'PAID'].includes(record.orderStatus)" 
+                      value="cancel"
                     >
                       取消订单
                     </a-doption>
-                    <a-doption 
-                      v-if="record.status === 1"
-                      @click="deleteOrder(record.id)"
-                      class="danger"
-                    >
-                      删除订单
+                    <a-doption value="updateStatus">
+                      更新状态
                     </a-doption>
                   </template>
                 </a-dropdown>
@@ -253,749 +155,670 @@
     <!-- 新建订单模态框 -->
     <a-modal 
       v-model:visible="createModalVisible" 
-      title="新建订单"
+      title="新建订单" 
       width="800px"
-      @ok="handleCreate"
+      @ok="handleCreateOrder"
       @cancel="resetCreateForm"
     >
-      <a-form :model="createForm" :rules="formRules" layout="vertical" ref="createFormRef">
+      <a-form :model="createForm" :rules="createRules" ref="createFormRef" layout="vertical">
         <a-row :gutter="16">
           <a-col :span="12">
             <a-form-item label="客户" field="customerId" required>
               <a-select 
                 v-model="createForm.customerId" 
-                placeholder="请选择客户"
-                @change="handleCustomerChange"
+                placeholder="选择客户"
+                :loading="customersLoading"
+                @dropdown-visible-change="loadCustomers"
               >
-                <a-option v-for="customer in customers" :key="customer.id" :value="customer.id">
-                  {{ customer.name }} ({{ customer.phone }})
+                <a-option 
+                  v-for="customer in customers" 
+                  :key="customer.id" 
+                  :value="customer.id"
+                >
+                  {{ customer.username }} - {{ customer.phone }}
                 </a-option>
               </a-select>
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="支付方式" field="paymentMethod">
-              <a-select v-model="createForm.paymentMethod" placeholder="请选择支付方式">
-                <a-option value="支付宝">支付宝</a-option>
-                <a-option value="微信支付">微信支付</a-option>
-                <a-option value="银行卡">银行卡</a-option>
-                <a-option value="现金">现金</a-option>
-              </a-select>
+            <a-form-item label="收货人姓名" field="consigneeName" required>
+              <a-input v-model="createForm.consigneeName" placeholder="输入收货人姓名" />
             </a-form-item>
           </a-col>
         </a-row>
-        
-        <!-- 商品选择 -->
-        <a-form-item label="商品" required>
-          <div class="product-selection">
-            <div 
-              v-for="(item, index) in createForm.orderItems" 
-              :key="index"
-              class="product-item"
-            >
-              <a-row :gutter="8" align="middle">
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="收货人电话" field="consigneePhone" required>
+              <a-input v-model="createForm.consigneePhone" placeholder="输入收货人电话" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="配送地址" field="deliveryAddress" required>
+              <a-input v-model="createForm.deliveryAddress" placeholder="输入配送地址" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        <a-form-item label="商品列表" required>
+          <div class="order-items">
+            <div v-for="(item, index) in createForm.items" :key="index" class="order-item">
+              <a-row :gutter="8" align="center">
                 <a-col :span="8">
                   <a-select 
                     v-model="item.productId" 
                     placeholder="选择商品"
+                    :loading="productsLoading"
+                    @dropdown-visible-change="loadProducts"
                     @change="(value) => handleProductChange(value, index)"
                   >
-                    <a-option v-for="product in products" :key="product.id" :value="product.id">
-                      {{ product.name }} (¥{{ product.price }})
+                    <a-option 
+                      v-for="product in products" 
+                      :key="product.id" 
+                      :value="product.id"
+                    >
+                      {{ product.name }} - ¥{{ product.price }}
                     </a-option>
                   </a-select>
                 </a-col>
                 <a-col :span="4">
                   <a-input-number 
                     v-model="item.quantity" 
-                    :min="1" 
-                    placeholder="数量"
-                    @change="() => calculateItemTotal(index)"
+                    placeholder="数量" 
+                    :min="1"
+                    @change="calculateItemTotal(index)"
                   />
                 </a-col>
                 <a-col :span="4">
                   <a-input-number 
                     v-model="item.price" 
-                    :min="0.01" 
+                    placeholder="单价" 
                     :precision="2"
-                    placeholder="单价"
-                    @change="() => calculateItemTotal(index)"
+                    @change="calculateItemTotal(index)"
                   />
                 </a-col>
                 <a-col :span="4">
-                  <span class="item-total">¥{{ (item.quantity * item.price || 0).toFixed(2) }}</span>
+                  <a-input 
+                    :model-value="item.subtotal?.toFixed(2) || '0.00'" 
+                    placeholder="小计" 
+                    readonly
+                  />
                 </a-col>
                 <a-col :span="4">
                   <a-button 
-                    type="text" 
+                    size="small" 
                     status="danger" 
                     @click="removeOrderItem(index)"
-                    :disabled="createForm.orderItems.length === 1"
+                    :disabled="createForm.items.length <= 1"
                   >
-                    <icon-delete />
+                    删除
                   </a-button>
                 </a-col>
               </a-row>
             </div>
             <a-button type="dashed" @click="addOrderItem" class="add-item-btn">
-              <icon-plus /> 添加商品
+              <template #icon><icon-plus /></template>
+              添加商品
             </a-button>
           </div>
         </a-form-item>
-        
-        <!-- 配送信息 -->
-        <a-divider>配送信息</a-divider>
-        <a-row :gutter="16">
-          <a-col :span="8">
-            <a-form-item label="收货人" field="deliveryName" required>
-              <a-input v-model="createForm.deliveryName" placeholder="请输入收货人姓名" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="联系电话" field="deliveryPhone" required>
-              <a-input v-model="createForm.deliveryPhone" placeholder="请输入联系电话" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="8">
-            <a-form-item label="邮政编码" field="deliveryPostcode">
-              <a-input v-model="createForm.deliveryPostcode" placeholder="请输入邮政编码" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="收货地址" field="deliveryAddress" required>
-          <a-textarea 
-            v-model="createForm.deliveryAddress" 
-            placeholder="请输入详细收货地址" 
-            :auto-size="{ minRows: 2 }"
-          />
+        <a-form-item label="备注">
+          <a-textarea v-model="createForm.remark" placeholder="输入备注信息" :rows="3" />
         </a-form-item>
-        <a-form-item label="备注" field="remark">
-          <a-textarea 
-            v-model="createForm.remark" 
-            placeholder="订单备注信息" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
-        
-        <!-- 订单总计 -->
-        <a-divider>订单总计</a-divider>
         <div class="order-total">
           <span class="total-label">订单总金额：</span>
-          <span class="total-amount">¥{{ orderTotal.toFixed(2) }}</span>
+          <span class="total-amount">¥{{ calculateTotalAmount().toFixed(2) }}</span>
         </div>
       </a-form>
     </a-modal>
 
-    <!-- 编辑订单模态框 -->
-    <a-modal 
-      v-model:visible="editModalVisible" 
-      title="编辑订单"
-      width="600px"
-      @ok="handleUpdate"
-      @cancel="resetEditForm"
-    >
-      <a-form :model="editForm" :rules="editFormRules" layout="vertical" ref="editFormRef">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="收货人" field="deliveryName" required>
-              <a-input v-model="editForm.deliveryName" placeholder="请输入收货人姓名" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="联系电话" field="deliveryPhone" required>
-              <a-input v-model="editForm.deliveryPhone" placeholder="请输入联系电话" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        <a-form-item label="收货地址" field="deliveryAddress" required>
-          <a-textarea 
-            v-model="editForm.deliveryAddress" 
-            placeholder="请输入详细收货地址" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
-        <a-form-item label="邮政编码" field="deliveryPostcode">
-          <a-input v-model="editForm.deliveryPostcode" placeholder="请输入邮政编码" />
-        </a-form-item>
-        <a-form-item label="支付方式" field="paymentMethod">
-          <a-select v-model="editForm.paymentMethod" placeholder="请选择支付方式">
-            <a-option value="支付宝">支付宝</a-option>
-            <a-option value="微信支付">微信支付</a-option>
-            <a-option value="银行卡">银行卡</a-option>
-            <a-option value="现金">现金</a-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="备注" field="remark">
-          <a-textarea 
-            v-model="editForm.remark" 
-            placeholder="订单备注信息" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-    
     <!-- 订单详情抽屉 -->
     <a-drawer 
-      v-model:visible="detailVisible" 
-      title="订单详情"
-      placement="right"
+      v-model:visible="detailDrawerVisible" 
+      title="订单详情" 
       width="600px"
+      :footer="false"
     >
       <div v-if="currentOrder" class="order-detail">
-        <!-- 基本信息 -->
-        <a-descriptions title="基本信息" :column="2" bordered>
+        <a-descriptions :column="2" bordered>
           <a-descriptions-item label="订单号">{{ currentOrder.orderNo }}</a-descriptions-item>
           <a-descriptions-item label="订单状态">
-            <a-tag :color="getStatusColor(currentOrder.status)">
-              {{ getStatusText(currentOrder.status) }}
+            <a-tag :color="ORDER_STATUS_COLOR[currentOrder.orderStatus]">
+              {{ ORDER_STATUS_TEXT[currentOrder.orderStatus] || currentOrder.orderStatus }}
             </a-tag>
           </a-descriptions-item>
-          <a-descriptions-item label="客户姓名">{{ currentOrder.customerName }}</a-descriptions-item>
-          <a-descriptions-item label="客户电话">{{ currentOrder.customerPhone }}</a-descriptions-item>
-          <a-descriptions-item label="客户邮箱">{{ currentOrder.customerEmail || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="订单金额">
-            <span class="amount">¥{{ currentOrder.totalAmount.toFixed(2) }}</span>
+          <a-descriptions-item label="下单时间">{{ formatDateTime(currentOrder.orderTime) }}</a-descriptions-item>
+          <a-descriptions-item label="订单金额">¥{{ currentOrder.totalAmount?.toFixed(2) || '0.00' }}</a-descriptions-item>
+          <a-descriptions-item label="客户信息" :span="2">
+            {{ currentOrder.customerInfo?.customerName || '-' }} 
+            {{ currentOrder.customerInfo?.phone || '' }}
           </a-descriptions-item>
-          <a-descriptions-item label="支付方式">{{ currentOrder.paymentMethod || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="创建时间">{{ formatDateTime(currentOrder.createTime) }}</a-descriptions-item>
         </a-descriptions>
-        
-        <!-- 商品信息 -->
-        <a-divider>商品信息</a-divider>
-        <a-table :data="currentOrder.orderItems" :pagination="false">
+
+        <a-divider>商品明细</a-divider>
+        <a-table 
+          :data="orderItems" 
+          :loading="itemsLoading"
+          :pagination="false"
+          size="small"
+        >
           <template #columns>
             <a-table-column title="商品名称" data-index="productName" />
-            <a-table-column title="单价" data-index="price">
+            <a-table-column title="数量" data-index="quantity" :width="80" />
+            <a-table-column title="单价" data-index="price" :width="100">
               <template #cell="{ record }">
-                ¥{{ record.price.toFixed(2) }}
+                ¥{{ record.price?.toFixed(2) || '0.00' }}
               </template>
             </a-table-column>
-            <a-table-column title="数量" data-index="quantity" />
-            <a-table-column title="小计" data-index="totalPrice">
+            <a-table-column title="小计" data-index="subtotal" :width="100">
               <template #cell="{ record }">
-                ¥{{ record.totalPrice.toFixed(2) }}
+                ¥{{ record.subtotal?.toFixed(2) || '0.00' }}
               </template>
             </a-table-column>
           </template>
         </a-table>
-        
-        <!-- 配送信息 -->
+
         <a-divider>配送信息</a-divider>
-        <a-descriptions :column="1" bordered>
-          <a-descriptions-item label="收货人">{{ currentOrder.deliveryName }}</a-descriptions-item>
-          <a-descriptions-item label="联系电话">{{ currentOrder.deliveryPhone }}</a-descriptions-item>
-          <a-descriptions-item label="收货地址">{{ currentOrder.deliveryAddress }}</a-descriptions-item>
-          <a-descriptions-item label="邮政编码">{{ currentOrder.deliveryPostcode || '-' }}</a-descriptions-item>
+        <a-descriptions :column="1" bordered v-if="deliveryInfo">
+          <a-descriptions-item label="收货人">{{ deliveryInfo.consigneeName }}</a-descriptions-item>
+          <a-descriptions-item label="联系电话">{{ deliveryInfo.consigneePhone }}</a-descriptions-item>
+          <a-descriptions-item label="配送地址">{{ deliveryInfo.deliveryAddress }}</a-descriptions-item>
+          <a-descriptions-item label="配送状态">{{ deliveryInfo.deliveryStatus }}</a-descriptions-item>
+          <a-descriptions-item label="快递单号" v-if="deliveryInfo.trackingNumber">
+            {{ deliveryInfo.trackingNumber }}
+          </a-descriptions-item>
+          <a-descriptions-item label="预计送达时间" v-if="deliveryInfo.estimatedDeliveryTime">
+            {{ formatDateTime(deliveryInfo.estimatedDeliveryTime) }}
+          </a-descriptions-item>
         </a-descriptions>
-        
-        <!-- 时间信息 -->
-        <a-divider>时间信息</a-divider>
-        <a-descriptions :column="1" bordered>
-          <a-descriptions-item label="创建时间">{{ formatDateTime(currentOrder.createTime) }}</a-descriptions-item>
-          <a-descriptions-item label="支付时间">{{ currentOrder.paymentTime ? formatDateTime(currentOrder.paymentTime) : '-' }}</a-descriptions-item>
-          <a-descriptions-item label="发货时间">{{ currentOrder.deliveryTime ? formatDateTime(currentOrder.deliveryTime) : '-' }}</a-descriptions-item>
-          <a-descriptions-item label="完成时间">{{ currentOrder.completeTime ? formatDateTime(currentOrder.completeTime) : '-' }}</a-descriptions-item>
-        </a-descriptions>
-        
-        <!-- 备注信息 -->
-        <a-divider>备注信息</a-divider>
-        <p>{{ currentOrder.remark || '无备注' }}</p>
       </div>
     </a-drawer>
+
+    <!-- 订单统计模态框 -->
+    <a-modal 
+      v-model:visible="statsModalVisible" 
+      title="订单统计" 
+      width="600px"
+      :footer="false"
+    >
+      <div v-if="orderStats" class="order-stats">
+        <a-row :gutter="16">
+          <a-col :span="8" v-for="(count, status) in orderStats" :key="status">
+            <a-card class="stat-card">
+              <div class="stat-content">
+                <div class="stat-title">{{ ORDER_STATUS_TEXT[status] || status }}</div>
+                <div class="stat-value" :style="{ color: ORDER_STATUS_COLOR[status] }">
+                  {{ count }}
+                </div>
+              </div>
+            </a-card>
+          </a-col>
+        </a-row>
+      </div>
+    </a-modal>
+
+    <!-- 更新状态模态框 -->
+    <a-modal 
+      v-model:visible="statusModalVisible" 
+      title="更新订单状态" 
+      @ok="handleUpdateStatus"
+      @cancel="resetStatusForm"
+    >
+      <a-form :model="statusForm" ref="statusFormRef">
+        <a-form-item label="当前状态">
+          <a-tag :color="ORDER_STATUS_COLOR[statusForm.currentStatus]">
+            {{ ORDER_STATUS_TEXT[statusForm.currentStatus] || statusForm.currentStatus }}
+          </a-tag>
+        </a-form-item>
+        <a-form-item label="新状态" field="newStatus" required>
+          <a-select v-model="statusForm.newStatus" placeholder="选择新状态">
+            <a-option v-for="(text, status) in ORDER_STATUS_TEXT" :key="status" :value="status">
+              {{ text }}
+            </a-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, computed } from 'vue'
+import { Message, Modal } from '@arco-design/web-vue'
 import {
-  getOrdersApi,
+  IconSearch,
+  IconRefresh,
+  IconPlus,
+  IconDownload,
+  IconBarChart,
+  IconDown
+} from '@arco-design/web-vue/es/icon'
+import {
   searchOrdersApi,
   getOrderDetailApi,
   createOrderApi,
-  updateOrderApi,
-  deleteOrderApi,
   updateOrderStatusApi,
+  payOrderApi,
+  confirmOrderApi,
+  cancelOrderApi,
+  getOrderItemsApi,
+  getOrderDeliveryInfoApi,
+  getOrderStatusStatsApi,
   getCustomersApi,
   getSimpleProductsApi,
-  batchDeleteOrdersApi,
-  getOrderStatsApi,
-  exportOrdersApi
-} from '@/api/order'
-import { Message, Modal } from '@arco-design/web-vue'
-import dayjs from 'dayjs'
+  exportOrdersApi,
+  ORDER_STATUS,
+  ORDER_STATUS_TEXT,
+  ORDER_STATUS_COLOR
+} from '../api/order'
 
-// 数据状态
+// 响应式数据
 const loading = ref(false)
 const orders = ref([])
 const customers = ref([])
 const products = ref([])
-const stats = ref({
-  todayOrders: 0,
-  todayAmount: 0,
-  pendingOrders: 0,
-  totalOrders: 0
-})
-
-// 分页配置
-const pagination = reactive({
-  total: 0,
-  current: 1,
-  pageSize: 10,
-  showTotal: true,
-  showPageSize: true,
-})
+const customersLoading = ref(false)
+const productsLoading = ref(false)
 
 // 搜索表单
 const searchForm = reactive({
   orderNo: '',
-  customerName: '',
-  customerPhone: '',
-  status: '',
-  minAmount: null,
-  maxAmount: null,
+  orderStatus: '',
+  customerId: null,
+  startTime: '',
+  endTime: '',
   timeRange: []
 })
 
-// 表格选择
-const selectedRowKeys = ref([])
-const rowSelection = reactive({
-  type: 'checkbox',
-  showCheckedAll: true,
-  onlyCurrent: false,
+// 分页
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showTotal: true,
+  showPageSize: true
 })
 
-// 模态框控制
+// 新建订单
 const createModalVisible = ref(false)
-const editModalVisible = ref(false)
-const detailVisible = ref(false)
-const currentOrder = ref(null)
-const currentEditOrder = ref(null)
-
-// 表单引用
 const createFormRef = ref()
-const editFormRef = ref()
-
-// 创建订单表单
 const createForm = reactive({
   customerId: null,
-  orderItems: [
+  consigneeName: '',
+  consigneePhone: '',
+  deliveryAddress: '',
+  items: [
     {
       productId: null,
       quantity: 1,
-      price: 0
+      price: 0,
+      subtotal: 0
     }
   ],
-  deliveryName: '',
-  deliveryPhone: '',
-  deliveryAddress: '',
-  deliveryPostcode: '',
-  paymentMethod: '',
   remark: ''
 })
 
-// 编辑订单表单
-const editForm = reactive({
-  deliveryName: '',
-  deliveryPhone: '',
-  deliveryAddress: '',
-  deliveryPostcode: '',
-  paymentMethod: '',
-  remark: ''
-})
-
-// 表单验证规则
-const formRules = {
+const createRules = {
   customerId: [{ required: true, message: '请选择客户' }],
-  deliveryName: [{ required: true, message: '请输入收货人姓名' }],
-  deliveryPhone: [
-    { required: true, message: '请输入联系电话' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
-  ],
-  deliveryAddress: [{ required: true, message: '请输入收货地址' }]
+  consigneeName: [{ required: true, message: '请输入收货人姓名' }],
+  consigneePhone: [{ required: true, message: '请输入收货人电话' }],
+  deliveryAddress: [{ required: true, message: '请输入配送地址' }]
 }
 
-const editFormRules = {
-  deliveryName: [{ required: true, message: '请输入收货人姓名' }],
-  deliveryPhone: [
-    { required: true, message: '请输入联系电话' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
-  ],
-  deliveryAddress: [{ required: true, message: '请输入收货地址' }]
-}
+// 订单详情
+const detailDrawerVisible = ref(false)
+const currentOrder = ref(null)
+const orderItems = ref([])
+const deliveryInfo = ref(null)
+const itemsLoading = ref(false)
 
-// 计算订单总金额
-const orderTotal = computed(() => {
-  return createForm.orderItems.reduce((total, item) => {
-    return total + (item.quantity * item.price || 0)
-  }, 0)
+// 订单统计
+const statsModalVisible = ref(false)
+const orderStats = ref(null)
+
+// 状态更新
+const statusModalVisible = ref(false)
+const statusFormRef = ref()
+const statusForm = reactive({
+  orderId: null,
+  currentStatus: '',
+  newStatus: ''
 })
 
-// 初始化
-onMounted(() => {
-  fetchOrders()
-  fetchCustomers()
-  fetchProducts()
-  fetchStats()
-})
-
-// 获取订单统计
-const fetchStats = async () => {
+// 方法
+const loadOrders = async () => {
   try {
-    const { data } = await getOrderStatsApi()
-    stats.value = data
-  } catch (error) {
-    console.error('获取统计信息失败:', error)
-  }
-}
-
-// 获取订单列表
-const fetchOrders = async () => {
-  loading.value = true
-  try {
-    const { data } = await getOrdersApi({
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize
-    })
-    
-    orders.value = data.list
-    pagination.total = data.total
-  } catch (error) {
-    Message.error('获取订单列表失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-// 获取客户列表
-const fetchCustomers = async () => {
-  try {
-    const { data } = await getCustomersApi()
-    customers.value = data
-  } catch (error) {
-    Message.error('获取客户列表失败')
-  }
-}
-
-// 获取商品列表
-const fetchProducts = async () => {
-  try {
-    const { data } = await getSimpleProductsApi()
-    products.value = data
-  } catch (error) {
-    Message.error('获取商品列表失败')
-  }
-}
-
-// 搜索订单
-const handleSearch = async () => {
-  loading.value = true
-  try {
+    loading.value = true
     const params = {
       ...searchForm,
+      status: searchForm.orderStatus, // 将orderStatus映射为后端期望的status字段
       pageNum: pagination.current,
       pageSize: pagination.pageSize
     }
     
-    // 处理时间范围
-    if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      params.startTime = dayjs(searchForm.timeRange[0]).format('YYYY-MM-DD HH:mm:ss')
-      params.endTime = dayjs(searchForm.timeRange[1]).format('YYYY-MM-DD HH:mm:ss')
-    }
+    // 删除前端特有的字段，避免传递给后端
+    delete params.orderStatus
     delete params.timeRange
     
-    const { data } = await searchOrdersApi(params)
+    // 清空空值
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key]
+      }
+    })
     
-    orders.value = data.list
-    pagination.total = data.total
+    const response = await searchOrdersApi(params)
+    if (response.code === 200) {
+      // 处理嵌套的PageResult数据结构
+      const pageData = response.data.data || response.data
+      orders.value = pageData.list || pageData.records || []
+      pagination.total = pageData.total || 0
+    }
   } catch (error) {
-    Message.error('搜索订单失败')
+    console.error('加载订单列表失败:', error)
+    Message.error('加载订单列表失败')
   } finally {
     loading.value = false
   }
 }
 
-// 重置搜索
-const handleReset = () => {
-  Object.keys(searchForm).forEach(key => {
-    if (key === 'timeRange') {
-      searchForm[key] = []
-    } else {
-      searchForm[key] = ''
+const loadCustomers = async (visible) => {
+  if (!visible || customers.value.length > 0) return
+  
+  try {
+    customersLoading.value = true
+    const response = await getCustomersApi()
+    if (response.code === 200) {
+      customers.value = response.data || []
     }
-  })
-  pagination.current = 1
-  fetchOrders()
+  } catch (error) {
+    console.error('加载客户列表失败:', error)
+  } finally {
+    customersLoading.value = false
+  }
 }
 
-// 分页处理
-const handlePageChange = (pageNum) => {
-  pagination.current = pageNum
+const loadProducts = async (visible) => {
+  if (!visible || products.value.length > 0) return
+  
+  try {
+    productsLoading.value = true
+    const response = await getSimpleProductsApi()
+    if (response.code === 200) {
+      products.value = response.data || []
+    }
+  } catch (error) {
+    console.error('加载商品列表失败:', error)
+  } finally {
+    productsLoading.value = false
+  }
+}
+
+const handleSearch = () => {
+  pagination.current = 1
+  loadOrders()
+}
+
+const handleReset = () => {
+  Object.assign(searchForm, {
+    orderNo: '',
+    orderStatus: '',
+    customerId: null,
+    startTime: '',
+    endTime: '',
+    timeRange: []
+  })
   handleSearch()
+}
+
+const handleTimeRangeChange = (value) => {
+  if (value && value.length === 2) {
+    searchForm.startTime = value[0]
+    searchForm.endTime = value[1]
+  } else {
+    searchForm.startTime = ''
+    searchForm.endTime = ''
+  }
+}
+
+const handlePageChange = (page) => {
+  pagination.current = page
+  loadOrders()
 }
 
 const handlePageSizeChange = (pageSize) => {
   pagination.pageSize = pageSize
   pagination.current = 1
-  handleSearch()
+  loadOrders()
 }
 
-// 显示创建模态框
 const showCreateModal = () => {
   createModalVisible.value = true
 }
 
-// 处理客户选择
-const handleCustomerChange = (customerId) => {
-  const customer = customers.value.find(c => c.id === customerId)
-  if (customer) {
-    createForm.deliveryName = customer.name
-    createForm.deliveryPhone = customer.phone
-  }
-}
-
-// 处理商品选择
-const handleProductChange = (productId, index) => {
-  const product = products.value.find(p => p.id === productId)
-  if (product) {
-    createForm.orderItems[index].price = product.price
-    calculateItemTotal(index)
-  }
-}
-
-// 计算商品小计
-const calculateItemTotal = (index) => {
-  const item = createForm.orderItems[index]
-  item.totalPrice = item.quantity * item.price
-}
-
-// 添加订单商品
-const addOrderItem = () => {
-  createForm.orderItems.push({
-    productId: null,
-    quantity: 1,
-    price: 0
-  })
-}
-
-// 移除订单商品
-const removeOrderItem = (index) => {
-  createForm.orderItems.splice(index, 1)
-}
-
-// 创建订单
-const handleCreate = async () => {
-  try {
-    const valid = await createFormRef.value.validate()
-    if (!valid) return
-    
-    // 验证商品信息
-    const hasInvalidItem = createForm.orderItems.some(item => 
-      !item.productId || !item.quantity || !item.price
-    )
-    if (hasInvalidItem) {
-      Message.error('请完善商品信息')
-      return
-    }
-    
-    const { data } = await createOrderApi(createForm)
-    Message.success('创建成功')
-    createModalVisible.value = false
-    resetCreateForm()
-    fetchOrders()
-    fetchStats()
-  } catch (error) {
-    Message.error(error.message || '创建失败')
-  }
-}
-
-// 重置创建表单
 const resetCreateForm = () => {
-  Object.keys(createForm).forEach(key => {
-    if (key === 'orderItems') {
-      createForm[key] = [{
+  Object.assign(createForm, {
+    customerId: null,
+    consigneeName: '',
+    consigneePhone: '',
+    deliveryAddress: '',
+    items: [
+      {
         productId: null,
         quantity: 1,
-        price: 0
-      }]
-    } else {
-      createForm[key] = ''
-    }
+        price: 0,
+        subtotal: 0
+      }
+    ],
+    remark: ''
   })
   createFormRef.value?.resetFields()
 }
 
-// 显示编辑模态框
-const showEditModal = (order) => {
-  currentEditOrder.value = order
-  Object.assign(editForm, {
-    deliveryName: order.deliveryName,
-    deliveryPhone: order.deliveryPhone,
-    deliveryAddress: order.deliveryAddress,
-    deliveryPostcode: order.deliveryPostcode,
-    paymentMethod: order.paymentMethod,
-    remark: order.remark
+const addOrderItem = () => {
+  createForm.items.push({
+    productId: null,
+    quantity: 1,
+    price: 0,
+    subtotal: 0
   })
-  editModalVisible.value = true
 }
 
-// 更新订单
-const handleUpdate = async () => {
+const removeOrderItem = (index) => {
+  createForm.items.splice(index, 1)
+}
+
+const handleProductChange = (productId, index) => {
+  const product = products.value.find(p => p.id === productId)
+  if (product) {
+    createForm.items[index].price = product.price
+    calculateItemTotal(index)
+  }
+}
+
+const calculateItemTotal = (index) => {
+  const item = createForm.items[index]
+  item.subtotal = (item.quantity || 0) * (item.price || 0)
+}
+
+const calculateTotalAmount = () => {
+  return createForm.items.reduce((total, item) => {
+    return total + (item.subtotal || 0)
+  }, 0)
+}
+
+const handleCreateOrder = async () => {
   try {
-    const valid = await editFormRef.value.validate()
+    const valid = await createFormRef.value?.validate()
     if (!valid) return
     
-    await updateOrderApi(currentEditOrder.value.id, editForm)
-    Message.success('更新成功')
-    editModalVisible.value = false
-    resetEditForm()
-    fetchOrders()
-  } catch (error) {
-    Message.error(error.message || '更新失败')
-  }
-}
-
-// 重置编辑表单
-const resetEditForm = () => {
-  Object.keys(editForm).forEach(key => {
-    editForm[key] = ''
-  })
-  editFormRef.value?.resetFields()
-}
-
-// 删除订单
-const deleteOrder = (id) => {
-  Modal.confirm({
-    title: '确认删除',
-    content: '确定要删除该订单吗？删除后无法恢复。',
-    onOk: async () => {
-      try {
-        await deleteOrderApi(id)
-        Message.success('删除成功')
-        fetchOrders()
-        fetchStats()
-      } catch (error) {
-        Message.error(error.message || '删除失败')
-      }
+    const orderData = {
+      ...createForm,
+      items: createForm.items.filter(item => item.productId && item.quantity > 0)
     }
-  })
-}
-
-// 批量删除
-const handleBatchDelete = () => {
-  Modal.confirm({
-    title: '确认批量删除',
-    content: `确定要删除选中的 ${selectedRowKeys.value.length} 个订单吗？`,
-    onOk: async () => {
-      try {
-        await batchDeleteOrdersApi(selectedRowKeys.value)
-        Message.success('批量删除成功')
-        selectedRowKeys.value = []
-        fetchOrders()
-        fetchStats()
-      } catch (error) {
-        Message.error(error.message || '批量删除失败')
-      }
+    
+    if (orderData.items.length === 0) {
+      Message.error('请至少添加一个商品')
+      return
     }
-  })
-}
-
-// 更新订单状态
-const updateOrderStatus = async (order, status) => {
-  try {
-    await updateOrderStatusApi(order.id, status)
-    Message.success('状态更新成功')
-    fetchOrders()
-    fetchStats()
+    
+    const response = await createOrderApi(orderData)
+    if (response.code === 200) {
+      Message.success('订单创建成功')
+      createModalVisible.value = false
+      resetCreateForm()
+      loadOrders()
+    }
   } catch (error) {
-    Message.error(error.message || '状态更新失败')
+    console.error('创建订单失败:', error)
+    Message.error('创建订单失败')
   }
 }
 
-// 判断是否可以更新状态
-const canUpdateStatus = (currentStatus, targetStatus) => {
-  const statusFlow = {
-    1: [2, 7], // 待支付 -> 已支付、已取消
-    2: [3, 7], // 已支付 -> 待发货、已取消
-    3: [4, 7], // 待发货 -> 已发货、已取消
-    4: [5, 7], // 已发货 -> 已收货、已取消
-    5: [6, 7], // 已收货 -> 已完成、已取消
-    6: [],     // 已完成
-    7: []      // 已取消
-  }
-  return statusFlow[currentStatus]?.includes(targetStatus) || false
-}
-
-// 查看详情
 const showDetail = async (order) => {
   try {
-    const { data } = await getOrderDetailApi(order.id)
-    currentOrder.value = data
-    detailVisible.value = true
+    currentOrder.value = order
+    detailDrawerVisible.value = true
+    
+    // 加载订单详情
+    const detailResponse = await getOrderDetailApi(order.orderId)
+    if (detailResponse.code === 200) {
+      currentOrder.value = detailResponse.data
+    }
+    
+    // 加载商品明细
+    itemsLoading.value = true
+    const itemsResponse = await getOrderItemsApi(order.orderId)
+    if (itemsResponse.code === 200) {
+      orderItems.value = itemsResponse.data.items || []
+    }
+    
+    // 加载配送信息
+    const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
+    if (deliveryResponse.code === 200) {
+      deliveryInfo.value = deliveryResponse.data
+    }
   } catch (error) {
-    Message.error('获取详情失败')
+    console.error('加载订单详情失败:', error)
+    Message.error('加载订单详情失败')
+  } finally {
+    itemsLoading.value = false
   }
 }
 
-// 导出数据
+const handleStatusAction = async (order, action) => {
+  try {
+    let response
+    switch (action) {
+      case 'pay':
+        response = await payOrderApi(order.orderId)
+        break
+      case 'confirm':
+        response = await confirmOrderApi(order.orderId)
+        break
+      case 'cancel':
+        Modal.confirm({
+          title: '确认取消订单？',
+          content: '取消后订单无法恢复，确定要取消吗？',
+          onOk: async () => {
+            const cancelResponse = await cancelOrderApi(order.orderId)
+            if (cancelResponse.code === 200) {
+              Message.success('订单已取消')
+              loadOrders()
+            }
+          }
+        })
+        return
+      case 'updateStatus':
+        statusForm.orderId = order.orderId
+        statusForm.currentStatus = order.orderStatus
+        statusForm.newStatus = ''
+        statusModalVisible.value = true
+        return
+    }
+    
+    if (response && response.code === 200) {
+      Message.success('操作成功')
+      loadOrders()
+    }
+  } catch (error) {
+    console.error('操作失败:', error)
+    Message.error('操作失败')
+  }
+}
+
+const handleUpdateStatus = async () => {
+  try {
+    const response = await updateOrderStatusApi(statusForm.orderId, statusForm.newStatus)
+    if (response.code === 200) {
+      Message.success('状态更新成功')
+      statusModalVisible.value = false
+      resetStatusForm()
+      loadOrders()
+    }
+  } catch (error) {
+    console.error('更新状态失败:', error)
+    Message.error('更新状态失败')
+  }
+}
+
+const resetStatusForm = () => {
+  Object.assign(statusForm, {
+    orderId: null,
+    currentStatus: '',
+    newStatus: ''
+  })
+}
+
+const showStatsModal = async () => {
+  try {
+    const response = await getOrderStatusStatsApi()
+    if (response.code === 200) {
+      orderStats.value = response.data
+      statsModalVisible.value = true
+    }
+  } catch (error) {
+    console.error('加载统计数据失败:', error)
+    Message.error('加载统计数据失败')
+  }
+}
+
 const handleExport = async () => {
   try {
     const params = { ...searchForm }
-    if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      params.startTime = dayjs(searchForm.timeRange[0]).format('YYYY-MM-DD HH:mm:ss')
-      params.endTime = dayjs(searchForm.timeRange[1]).format('YYYY-MM-DD HH:mm:ss')
-    }
-    delete params.timeRange
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key]
+      }
+    })
     
     const response = await exportOrdersApi(params)
     
     // 创建下载链接
-    const blob = new Blob([response.data], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    })
+    const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `订单数据_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    link.download = `订单数据_${new Date().toISOString().slice(0, 10)}.xlsx`
+    document.body.appendChild(link)
     link.click()
+    document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
     
     Message.success('导出成功')
   } catch (error) {
+    console.error('导出失败:', error)
     Message.error('导出失败')
   }
 }
 
-// 工具函数
-const getStatusColor = (status) => {
-  const colors = {
-    1: 'orange',   // 待支付
-    2: 'blue',     // 已支付
-    3: 'cyan',     // 待发货
-    4: 'purple',   // 已发货
-    5: 'lime',     // 已收货
-    6: 'green',    // 已完成
-    7: 'red'       // 已取消
-  }
-  return colors[status] || 'gray'
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    1: '待支付',
-    2: '已支付',
-    3: '待发货',
-    4: '已发货',
-    5: '已收货',
-    6: '已完成',
-    7: '已取消'
-  }
-  return texts[status] || '未知'
-}
-
 const formatDateTime = (dateTime) => {
-  return dayjs(dateTime).format('YYYY-MM-DD HH:mm:ss')
+  if (!dateTime) return '-'
+  return new Date(dateTime).toLocaleString('zh-CN')
 }
+
+// 生命周期
+onMounted(() => {
+  loadOrders()
+})
 </script>
 
 <style scoped>
@@ -1003,15 +826,30 @@ const formatDateTime = (dateTime) => {
   padding: 20px;
 }
 
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1d2129;
+}
+
 .search-card {
   margin-bottom: 16px;
 }
 
+.search-form {
+  gap: 16px;
+}
+
 .action-bar {
-  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 16px;
 }
 
 .action-bar > div {
@@ -1019,58 +857,31 @@ const formatDateTime = (dateTime) => {
   gap: 8px;
 }
 
-.customer-name {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.customer-phone {
-  font-size: 12px;
-  color: #86909c;
-}
-
-.order-items {
-  font-size: 12px;
-}
-
-.order-item {
-  margin-bottom: 2px;
-}
-
-.more-items {
-  color: #86909c;
-  font-style: italic;
-}
-
-.amount {
+.amount-text {
   font-weight: 600;
   color: #f53f3f;
 }
 
-.status-tag {
-  font-weight: 500;
+.products-text {
+  display: inline-block;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.product-selection {
+.order-items {
   border: 1px solid #e5e6eb;
   border-radius: 6px;
   padding: 16px;
 }
 
-.product-item {
+.order-item {
   margin-bottom: 12px;
-  padding: 12px;
-  background: #f7f8fa;
-  border-radius: 4px;
 }
 
-.product-item:last-child {
+.order-item:last-child {
   margin-bottom: 0;
-}
-
-.item-total {
-  font-weight: 600;
-  color: #f53f3f;
 }
 
 .add-item-btn {
@@ -1080,52 +891,48 @@ const formatDateTime = (dateTime) => {
 
 .order-total {
   text-align: right;
-  padding: 16px;
-  background: #f7f8fa;
-  border-radius: 6px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e5e6eb;
 }
 
 .total-label {
   font-size: 16px;
-  margin-right: 8px;
+  color: #4e5969;
 }
 
 .total-amount {
   font-size: 20px;
   font-weight: 600;
   color: #f53f3f;
+  margin-left: 8px;
 }
 
 .order-detail {
   padding: 16px 0;
 }
 
-.price-separator {
-  margin: 0 8px;
-  color: #999;
+.order-stats {
+  padding: 16px 0;
 }
 
 .stat-card {
   text-align: center;
+  margin-bottom: 16px;
 }
 
-.danger {
-  color: #f53f3f !important;
+.stat-content {
+  padding: 16px;
 }
 
-@media (max-width: 768px) {
-  .action-bar {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .search-form .arco-form {
-    flex-direction: column;
-  }
-  
-  .search-form .arco-form-item {
-    width: 100% !important;
-  }
+.stat-title {
+  font-size: 14px;
+  color: #86909c;
+  margin-bottom: 8px;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 600;
 }
 </style>
