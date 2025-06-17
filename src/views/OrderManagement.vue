@@ -571,8 +571,9 @@ const handleReset = () => {
 
 const handleTimeRangeChange = (value) => {
   if (value && value.length === 2) {
-    searchForm.startTime = value[0]
-    searchForm.endTime = value[1]
+    // 将时间格式转换为ISO 8601格式，以匹配后端LocalDateTime的期望格式
+    searchForm.startTime = value[0].replace(' ', 'T')
+    searchForm.endTime = value[1].replace(' ', 'T')
   } else {
     searchForm.startTime = ''
     searchForm.endTime = ''

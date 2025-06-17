@@ -151,30 +151,27 @@ export const exportOrdersApi = (params) => {
 
 // 订单状态常量
 export const ORDER_STATUS = {
-  PENDING_PAYMENT: 'PENDING_PAYMENT',
+  CREATED: 'CREATED',
   PAID: 'PAID', 
-  SHIPPED: 'SHIPPED',
-  DELIVERED: 'DELIVERED',
+  SHIPPING: 'SHIPPING',
   COMPLETED: 'COMPLETED',
   CANCELLED: 'CANCELLED'
 }
 
 // 订单状态显示文本
 export const ORDER_STATUS_TEXT = {
-  [ORDER_STATUS.PENDING_PAYMENT]: '待支付',
+  [ORDER_STATUS.CREATED]: '待支付',
   [ORDER_STATUS.PAID]: '已支付',
-  [ORDER_STATUS.SHIPPED]: '已发货',
-  [ORDER_STATUS.DELIVERED]: '已送达',
+  [ORDER_STATUS.SHIPPING]: '待收货',
   [ORDER_STATUS.COMPLETED]: '已完成',
   [ORDER_STATUS.CANCELLED]: '已取消'
 }
 
 // 订单状态颜色
 export const ORDER_STATUS_COLOR = {
-  [ORDER_STATUS.PENDING_PAYMENT]: 'orange',
+  [ORDER_STATUS.CREATED]: 'orange',
   [ORDER_STATUS.PAID]: 'blue',
-  [ORDER_STATUS.SHIPPED]: 'cyan',
-  [ORDER_STATUS.DELIVERED]: 'green',
+  [ORDER_STATUS.SHIPPING]: 'cyan',
   [ORDER_STATUS.COMPLETED]: 'green',
   [ORDER_STATUS.CANCELLED]: 'red'
 }
