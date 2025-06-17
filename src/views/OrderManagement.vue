@@ -105,9 +105,19 @@
               </a-tooltip>
             </template>
           </a-table-column>
-          <a-table-column title="客户信息" data-index="customerName" :width="120">
+          <a-table-column title="客户ID" data-index="customerName" :width="150">
             <template #cell="{ record }">
-              {{ record.customerName || '-' }}
+              <div>
+                <div>{{ record.customerId || '-' }}</div>
+              </div>
+            </template>
+          </a-table-column>
+          //TODO: 客户用户名
+          <a-table-column title="客户姓名" data-index="customerName" :width="150">
+            <template #cell="{ record }">
+              <div>
+                <div>{{ record.username || record.customerName || '-' }}</div>
+              </div>
             </template>
           </a-table-column>
           <a-table-column title="操作" :width="200" fixed="right">
@@ -571,9 +581,8 @@ const handleReset = () => {
 
 const handleTimeRangeChange = (value) => {
   if (value && value.length === 2) {
-    // 将时间格式转换为ISO 8601格式，以匹配后端LocalDateTime的期望格式
-    searchForm.startTime = value[0].replace(' ', 'T')
-    searchForm.endTime = value[1].replace(' ', 'T')
+    searchForm.startTime = value[0]
+    searchForm.endTime = value[1]
   } else {
     searchForm.startTime = ''
     searchForm.endTime = ''
