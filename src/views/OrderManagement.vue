@@ -209,7 +209,7 @@
             </a-form-item>
           </a-col>
         </a-row>
-        <a-form-item label="商品列表" required>
+        <a-form-item label="商品列表" field="items" required>
           <div class="order-items">
             <div v-for="(item, index) in createForm.items" :key="index" class="order-item">
               <a-row :gutter="8" align="center">
@@ -471,7 +471,29 @@ const createRules = {
   customerId: [{ required: true, message: '请选择客户' }],
   consigneeName: [{ required: true, message: '请输入收货人姓名' }],
   consigneePhone: [{ required: true, message: '请输入收货人电话' }],
-  deliveryAddress: [{ required: true, message: '请输入配送地址' }]
+  deliveryAddress: [{ required: true, message: '请输入配送地址' }],
+  items: [
+    {
+      required: true,
+      validator: (value, callback) => {
+        console.log('🔍 验证商品项:', value)
+        if (!value || value.length === 0) {
+          console.warn('⚠️ 商品项为空')
+          callback('请至少添加一个商品')
+          return
+        }
+        const validItems = value.filter(item => item.productId && item.quantity > 0)
+        console.log('✅ 有效商品项:', validItems)
+        if (validItems.length === 0) {
+          console.warn('⚠️ 没有有效的商品项')
+          callback('请至少添加一个有效的商品')
+          return
+        }
+        console.log('✅ 商品项验证通过')
+        callback()
+      }
+    }
+  ]
 }
 
 // 订单详情
@@ -719,9 +741,22 @@ const calculateTotalAmount = () => {
 const handleCreateOrder = async () => {
   try {
     console.log('📝 开始创建订单，验证表单...')
-    const valid = await createFormRef.value?.validate()
-    if (!valid) {
+    console.log('📋 当前表单数据:', {
+      customerId: createForm.customerId,
+      consigneeName: createForm.consigneeName,
+      consigneePhone: createForm.consigneePhone,
+      deliveryAddress: createForm.deliveryAddress,
+      items: createForm.items,
+      remark: createForm.remark
+    })
+    
+    try {
+      const valid = await createFormRef.value?.validate()
+      console.log('✅ 表单验证通过')
+    } catch (error) {
       console.warn('⚠️ 表单验证失败')
+      console.log('📋 验证失败的表单数据详情:', createForm)
+      console.log('❌ 验证错误详情:', error)
       return
     }
     
