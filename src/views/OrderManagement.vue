@@ -829,11 +829,10 @@ const handleStatusAction = async (order, action) => {
 
 const handleUpdateStatus = async () => {
   try {
-    const response = await updateOrderStatusApi({
-      orderId: statusForm.orderId,
-      orderStatus: statusForm.newStatus,
-      remark: statusForm.remark
-    })
+    const response = await updateOrderStatusApi(
+      statusForm.orderId,
+      statusForm.newStatus
+    )
     
     if (response.code === 200) {
       statusModalVisible.value = false
