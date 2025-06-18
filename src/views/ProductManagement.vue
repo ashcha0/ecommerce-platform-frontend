@@ -6,132 +6,165 @@
     </div>
 
     <!-- 搜索和操作区域 -->
-    <div class="search-section">
-      <div class="search-form">
-        <el-form :inline="true" :model="searchForm" class="search-form">
-          <el-form-item label="商品名称">
-            <el-input
-              v-model="searchForm.name"
-              placeholder="请输入商品名称"
-              clearable
-              style="width: 200px"
-            />
-          </el-form-item>
-          <el-form-item label="店铺ID">
-            <el-input
-              v-model="searchForm.storeId"
-              placeholder="请输入店铺ID"
-              clearable
-              style="width: 150px"
-            />
-          </el-form-item>
-          <el-form-item label="价格范围">
-            <el-input
-              v-model="searchForm.minPrice"
-              placeholder="最低价格"
-              style="width: 120px"
-            />
-            <span style="margin: 0 10px">-</span>
-            <el-input
-              v-model="searchForm.maxPrice"
-              placeholder="最高价格"
-              style="width: 120px"
-            />
-          </el-form-item>
-          <el-form-item label="商品状态">
-            <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width: 120px">
-              <el-option label="上架" :value="1" />
-              <el-option label="下架" :value="0" />
-            </el-select>
-          </el-form-item>
-          <el-form-item label="库存状态">
-            <el-select v-model="searchForm.inStock" placeholder="请选择库存状态" clearable style="width: 120px">
-              <el-option label="有库存" :value="true" />
-              <el-option label="无库存" :value="false" />
-            </el-select>
-          </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="searchProducts">搜索</el-button>
-            <el-button @click="resetSearch">重置</el-button>
-          </el-form-item>
-        </el-form>
-      </div>
-      <div class="action-buttons">
-        <el-button type="primary" @click="showAddDialog">新增商品</el-button>
-      </div>
+    <a-card class="search-card" title="订单搜索">
+      <a-form :model="searchForm" layout="inline" class="search-form">
+        <a-form-item label="商品名称">
+          <a-input
+            v-model="searchForm.name"
+            placeholder="请输入商品名称"
+            clearable
+            style="width: 200px"
+          />
+        </a-form-item>
+        <a-form-item label="店铺ID">
+          <a-input
+            v-model="searchForm.storeId"
+            placeholder="请输入店铺ID"
+            clearable
+            style="width: 150px"
+          />
+        </a-form-item>
+        <a-form-item label="价格范围">
+          <a-input
+            v-model="searchForm.minPrice"
+            placeholder="最低价格"
+            style="width: 120px"
+          />
+          <span style="margin: 0 10px">-</span>
+          <a-input
+            v-model="searchForm.maxPrice"
+            placeholder="最高价格"
+            style="width: 120px"
+          />
+        </a-form-item>
+        <a-form-item label="商品状态">
+          <a-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width:120px">
+            <a-option label="上架" :value="1" />
+            <a-option label="下架" :value="0" />
+          </a-select>
+        </a-form-item>
+        <a-form-item label="库存状态">
+          <a-select v-model="searchForm.inStock" placeholder="请选择库存状态" clearable style="width:120px">
+            <a-option label="有库存" :value="true" />
+            <a-option label="无库存" :value="false" />
+          </a-select>
+        </a-form-item>
+        <a-form-item>
+          <a-space>
+            <a-button type="primary" @click="searchProducts">
+              <template #icon><icon-search /></template>
+              搜索
+            </a-button>
+            <a-button @click="resetSearch">
+              <template #icon><icon-refresh /></template>
+              重置
+            </a-button>
+          </a-space>
+        </a-form-item>
+      </a-form>
+    </a-card>
+
+    <!-- 操作按钮区域 -->
+    <div class="action-bar">
+        <a-button type="primary" @click="showAddDialog">
+          <template #icon><icon-plus /></template>
+          新增商品
+        </a-button>
     </div>
 
     <!-- 商品列表表格 -->
-    <div class="table-section">
-      <el-table
-        :data="productList"
-        v-loading="loading"
-        style="width: 100%"
-        border
+    <a-card>
+      <a-table 
+        :data="productList" 
+        :loading="loading"
+        :pagination="pagination"
+        @page-change="handleCurrentChange"
+        @page-size-change="handleSizeChange"
+        row-key="id"
       >
-        <el-table-column prop="id" label="商品ID" width="80" />
-        <el-table-column prop="name" label="商品名称" min-width="150" />
-        <el-table-column prop="storeId" label="店铺ID" width="100" />
-        <el-table-column prop="description" label="商品描述" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="price" label="价格" width="100">
-          <template #default="scope">
-            ¥{{ scope.row.price }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="salesCount" label="销量" width="80" />
-        <el-table-column label="商品图片" width="100">
-          <template #default="scope">
-            <el-image
-              v-if="scope.row.imageUrl"
-              :src="scope.row.imageUrl"
-              style="width: 50px; height: 50px"
-              fit="cover"
-              :preview-src-list="[scope.row.imageUrl]"
-            />
-            <span v-else>无图片</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
-          <template #default="scope">
-            <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
-              {{ scope.row.status === 1 ? '上架' : '下架' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180">
-          <template #default="scope">
-            {{ formatDateTime(scope.row.createTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
-          <template #default="scope">
-            <el-button size="small" @click="viewProduct(scope.row)">查看</el-button>
-            <el-button size="small" type="primary" @click="editProduct(scope.row)">编辑</el-button>
-            <el-button
-              size="small"
-              :type="scope.row.status === 1 ? 'warning' : 'success'"
-              @click="toggleStatus(scope.row)"
-            >
-              {{ scope.row.status === 1 ? '下架' : '上架' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="deleteProduct(scope.row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-section">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
-      </div>
-    </div>
+        <template #columns>
+          <a-table-column title="商品ID" data-index="id" :width="100">
+            <template #cell="{ record }">
+              <a-link @click="viewProduct(record)">{{ record.id }}</a-link>
+            </template>
+          </a-table-column>
+          <a-table-column title="商品名称" data-index="name" :width="180">
+            <template #cell="{ record }">
+              <a-tooltip :content="record.name" :disabled="!record.name">
+                <span class="product-name">{{ record.name || '-' }}</span>
+              </a-tooltip>
+            </template>
+          </a-table-column>
+          <a-table-column title="店铺ID" data-index="storeId" :width="100" />
+          <a-table-column title="商品描述" data-index="description" :width="200">
+            <template #cell="{ record }">
+              <a-tooltip :content="record.description" :disabled="!record.description">
+                <span class="description-text">{{ record.description || '-' }}</span>
+              </a-tooltip>
+            </template>
+          </a-table-column>
+          <a-table-column title="价格" data-index="price" :width="120">
+            <template #cell="{ record }">
+              <span class="amount-text">¥{{ record.price?.toFixed(2) || '0.00' }}</span>
+            </template>
+          </a-table-column>
+          <a-table-column title="销量" data-index="salesCount" :width="100">
+            <template #cell="{ record }">
+              {{ record.salesCount || 0 }}
+            </template>
+          </a-table-column>
+          <a-table-column title="商品图片" :width="120">
+            <template #cell="{ record }">
+              <div class="product-image">
+                <a-image
+                  v-if="record.imageUrl"
+                  :src="record.imageUrl"
+                  width="50"
+                  height="50"
+                  fit="cover"
+                  :preview="true"
+                />
+                <span v-else class="no-image">无图片</span>
+              </div>
+            </template>
+          </a-table-column>
+          <a-table-column title="状态" data-index="status" :width="100">
+            <template #cell="{ record }">
+              <a-tag :color="record.status === 1 ? 'green' : 'red'">
+                {{ record.status === 1 ? '上架' : '下架' }}
+              </a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column title="创建时间" data-index="createTime" :width="180">
+            <template #cell="{ record }">
+              {{ formatDateTime(record.createTime) }}
+            </template>
+          </a-table-column>
+          <a-table-column title="操作" :width="250" fixed="right">
+            <template #cell="{ record }">
+              <a-space>
+                <a-button size="small" @click="viewProduct(record)">
+                  查看
+                </a-button>
+                <a-button size="small" type="primary" @click="editProduct(record)">
+                  编辑
+                </a-button>
+                <a-button
+                  size="small"
+                  :type="record.status === 1 ? 'outline' : 'primary'"
+                  @click="toggleStatus(record)"
+                >
+                  {{ record.status === 1 ? '下架' : '上架' }}
+                </a-button>
+                <a-button size="small" status="danger" @click="deleteProduct(record)">
+                  删除
+                </a-button>
+              </a-space>
+            </template>
+          </a-table-column>
+        </template>
+      </a-table>
+    </a-card>
 
     <!-- 新增/编辑商品对话框 -->
     <el-dialog
@@ -254,7 +287,7 @@
 
 <script>
 import { ref, reactive, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { Message, Modal } from '@arco-design/web-vue'
 import {
   getProductsApi as getProducts,
   searchProductsApi as searchProductsApi,
@@ -344,11 +377,11 @@ export default {
           productList.value = response.data.list
           pagination.total = response.data.total
         } else {
-          ElMessage.error(response.message || '获取商品列表失败')
+          Message.error(response.message || '获取商品列表失败')
         }
       } catch (error) {
         console.error('获取商品列表失败:', error)
-        ElMessage.error('获取商品列表失败')
+        Message.error('获取商品列表失败')
       } finally {
         loading.value = false
       }
@@ -374,11 +407,11 @@ export default {
           productList.value = response.data.list
           pagination.total = response.data.total
         } else {
-          ElMessage.error(response.message || '搜索商品失败')
+          Message.error(response.message || '搜索商品失败')
         }
       } catch (error) {
         console.error('搜索商品失败:', error)
-        ElMessage.error('搜索商品失败')
+        Message.error('搜索商品失败')
       } finally {
         loading.value = false
       }
@@ -415,37 +448,38 @@ export default {
           currentProduct.value = response.data
           detailDialogVisible.value = true
         } else {
-          ElMessage.error(response.message || '获取商品详情失败')
+          Message.error(response.message || '获取商品详情失败')
         }
       } catch (error) {
         console.error('获取商品详情失败:', error)
-        ElMessage.error('获取商品详情失败')
+        Message.error('获取商品详情失败')
       }
     }
 
     const deleteProduct = async (product) => {
       try {
-        await ElMessageBox.confirm(
-          `确定要删除商品"${product.name}"吗？`,
-          '删除确认',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
+        await new Promise((resolve, reject) => {
+          Modal.confirm({
+            title: '删除确认',
+            content: `确定要删除商品"${product.name}"吗？`,
+            okText: '确定',
+            cancelText: '取消',
+            onOk: resolve,
+            onCancel: reject
+          })
+        })
         
         const response = await deleteProductApi(product.id)
         if (response.code === 200) {
-          ElMessage.success('删除成功')
+          Message.success('删除成功')
           getProductList()
         } else {
-          ElMessage.error(response.message || '删除失败')
+          Message.error(response.message || '删除失败')
         }
       } catch (error) {
         if (error !== 'cancel') {
           console.error('删除商品失败:', error)
-          ElMessage.error('删除失败')
+          Message.error('删除失败')
         }
       }
     }
@@ -455,27 +489,28 @@ export default {
         const newStatus = product.status === 1 ? 0 : 1
         const statusText = newStatus === 1 ? '上架' : '下架'
         
-        await ElMessageBox.confirm(
-          `确定要${statusText}商品"${product.name}"吗？`,
-          '状态切换确认',
-          {
-            confirmButtonText: '确定',
-            cancelButtonText: '取消',
-            type: 'warning'
-          }
-        )
+        await new Promise((resolve, reject) => {
+          Modal.confirm({
+            title: '状态切换确认',
+            content: `确定要${statusText}商品"${product.name}"吗？`,
+            okText: '确定',
+            cancelText: '取消',
+            onOk: resolve,
+            onCancel: reject
+          })
+        })
         
         const response = await toggleProductStatus(product.id, newStatus)
         if (response.code === 200) {
-          ElMessage.success(`${statusText}成功`)
+          Message.success(`${statusText}成功`)
           getProductList()
         } else {
-          ElMessage.error(response.message || `${statusText}失败`)
+          Message.error(response.message || `${statusText}失败`)
         }
       } catch (error) {
         if (error !== 'cancel') {
           console.error('切换商品状态失败:', error)
-          ElMessage.error('操作失败')
+          Message.error('操作失败')
         }
       }
     }
@@ -498,38 +533,32 @@ export default {
             // 更新商品时，警告信息在response.data中
             if (response.data && response.data.includes('URL格式无效')) {
               hasWarning = true
-              ElMessageBox.alert(
-                response.data,
-                '警告',
-                {
-                  confirmButtonText: '确定',
-                  type: 'warning'
-                }
-              )
+              Modal.warning({
+                title: '警告',
+                content: response.data,
+                okText: '确定'
+              })
             }
           } else {
             // 创建商品时，警告信息在response.message中
             if (response.message && response.message.includes('URL格式无效')) {
               hasWarning = true
-              ElMessageBox.alert(
-                response.message,
-                '警告',
-                {
-                  confirmButtonText: '确定',
-                  type: 'warning'
-                }
-              )
+              Modal.warning({
+                title: '警告',
+                content: response.message,
+                okText: '确定'
+              })
             }
           }
-          ElMessage.success(isEdit.value ? '更新成功' : '创建成功')
+          Message.success(isEdit.value ? '更新成功' : '创建成功')
           dialogVisible.value = false
           getProductList()
         } else {
-          ElMessage.error(response.message || (isEdit.value ? '更新失败' : '创建失败'))
+          Message.error(response.message || (isEdit.value ? '更新失败' : '创建失败'))
         }
       } catch (error) {
         console.error('提交表单失败:', error)
-        ElMessage.error(isEdit.value ? '更新失败' : '创建失败')
+        Message.error(isEdit.value ? '更新失败' : '创建失败')
       }
     }
 
@@ -651,12 +680,23 @@ export default {
   align-items: flex-start;
 }
 
+.search-card {
+  margin-bottom: 16px;
+}
+
 .search-form {
-  flex: 1;
+  gap: 16px;
 }
 
 .action-buttons {
   margin-left: 20px;
+}
+
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
 .table-section {
