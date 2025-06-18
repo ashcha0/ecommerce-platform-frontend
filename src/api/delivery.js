@@ -9,7 +9,7 @@ import request from './request'
  */
 export const getDeliveriesApi = (params = {}) => {
   return request({
-    url: '/api/delivery',
+    url: '/delivery',
     method: 'get',
     params
   })
@@ -31,7 +31,7 @@ export const getDeliveriesApi = (params = {}) => {
  */
 export const searchDeliveriesApi = (params) => {
   return request({
-    url: '/api/delivery',
+    url: '/delivery',
     method: 'get',
     params
   })
@@ -44,7 +44,7 @@ export const searchDeliveriesApi = (params) => {
  */
 export const getDeliveryDetailApi = (id) => {
   return request({
-    url: `/api/delivery/${id}`,
+    url: `/delivery/${id}`,
     method: 'get'
   })
 }
@@ -56,7 +56,7 @@ export const getDeliveryDetailApi = (id) => {
  */
 export const createDeliveryApi = (data) => {
   return request({
-    url: `/api/delivery`,
+    url: `/delivery`,
     method: 'post',
     data
   })
@@ -70,7 +70,7 @@ export const createDeliveryApi = (data) => {
  */
 export const updateDeliveryApi = (orderId, data) => {
   return request({
-    url: `/api/delivery/order/${orderId}`,
+    url: `/delivery/order/${orderId}`,
     method: 'put',
     data
   })
@@ -83,7 +83,7 @@ export const updateDeliveryApi = (orderId, data) => {
  */
 export const deleteDeliveryApi = (id) => {
   return request({
-    url: `/api/delivery/${id}`,
+    url: `/delivery/${id}`,
     method: 'delete'
   })
 }
@@ -96,7 +96,7 @@ export const deleteDeliveryApi = (id) => {
  */
 export const updateDeliveryStatusApi = (orderId, status) => {
   return request({
-    url: `/api/delivery/order/${orderId}/status`,
+    url: `/delivery/order/${orderId}/status`,
     method: 'put',
     params: { status }
   })
@@ -111,7 +111,7 @@ export const updateDeliveryStatusApi = (orderId, status) => {
  */
 export const shipDeliveryApi = (orderId, trackingNo, shipper) => {
   return request({
-    url: `/api/delivery/order/${orderId}/ship`,
+    url: `/delivery/order/${orderId}/ship`,
     method: 'post',
     params: { trackingNo, shipper }
   })
@@ -124,7 +124,7 @@ export const shipDeliveryApi = (orderId, trackingNo, shipper) => {
  */
 export const confirmDeliveryApi = (orderId) => {
   return request({
-    url: `/api/delivery/order/${orderId}/confirm`,
+    url: `/delivery/order/${orderId}/confirm`,
     method: 'post'
   })
 }
@@ -136,7 +136,7 @@ export const confirmDeliveryApi = (orderId) => {
  */
 export const getDeliveryByOrderIdApi = (orderId) => {
   return request({
-    url: `/api/delivery/order/${orderId}`,
+    url: `/delivery/order/${orderId}`,
     method: 'get'
   })
 }
@@ -148,7 +148,7 @@ export const getDeliveryByOrderIdApi = (orderId) => {
  */
 export const batchDeleteDeliveriesApi = (ids) => {
   return request({
-    url: '/api/delivery/batch',
+    url: '/delivery/batch',
     method: 'delete',
     data: { ids }
   })
@@ -162,7 +162,7 @@ export const batchDeleteDeliveriesApi = (ids) => {
  */
 export const batchUpdateDeliveryStatusApi = (ids, status) => {
   return request({
-    url: '/api/delivery/batch/status',
+    url: '/delivery/batch/status',
     method: 'put',
     data: { ids, status }
   })
@@ -174,7 +174,7 @@ export const batchUpdateDeliveryStatusApi = (ids, status) => {
  */
 export const getDeliveryStatsApi = () => {
   return request({
-    url: '/api/delivery/stats',
+    url: '/delivery/stats',
     method: 'get'
   })
 }
@@ -185,7 +185,7 @@ export const getDeliveryStatsApi = () => {
  */
 export const getDeliveryCompaniesApi = () => {
   return request({
-    url: '/api/delivery/companies',
+    url: '/delivery/companies',
     method: 'get'
   })
 }
@@ -198,7 +198,7 @@ export const getDeliveryCompaniesApi = () => {
  */
 export const trackDeliveryApi = (deliveryNo, company) => {
   return request({
-    url: '/api/delivery/track',
+    url: '/delivery/track',
     method: 'get',
     params: { deliveryNo, company }
   })
@@ -211,7 +211,7 @@ export const trackDeliveryApi = (deliveryNo, company) => {
  */
 export const exportDeliveriesApi = (params = {}) => {
   return request({
-    url: '/api/delivery/export',
+    url: '/delivery/export',
     method: 'get',
     params,
     responseType: 'blob'
