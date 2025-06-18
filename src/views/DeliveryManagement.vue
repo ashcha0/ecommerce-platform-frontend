@@ -1,102 +1,44 @@
 <template>
   <div class="delivery-management">
-    <!-- 统计卡片区域 -->
-    <a-row :gutter="16" class="mb-20">
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="总配送单"
-            :value="stats.totalDeliveries"
-            :value-style="{ color: '#1890ff' }"
-          >
-            <template #prefix>
-              <icon-truck />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="配送中"
-            :value="stats.deliveringCount"
-            :value-style="{ color: '#faad14' }"
-          >
-            <template #prefix>
-              <icon-clock-circle />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="已完成"
-            :value="stats.completedCount"
-            :value-style="{ color: '#52c41a' }"
-          >
-            <template #prefix>
-              <icon-check-circle />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-      <a-col :span="6">
-        <a-card class="stat-card">
-          <a-statistic
-            title="配送成功率"
-            :value="stats.successRate"
-            :precision="1"
-            suffix="%"
-            :value-style="{ color: '#722ed1' }"
-          >
-            <template #prefix>
-              <icon-trophy />
-            </template>
-          </a-statistic>
-        </a-card>
-      </a-col>
-    </a-row>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1>配送管理</h1>
+    </div>
 
     <!-- 搜索区域 -->
     <a-card class="search-card" title="配送搜索">
       <a-form :model="searchForm" layout="inline" class="search-form">
-        <a-form-item label="订单号">
-          <a-input v-model="searchForm.orderNo" placeholder="输入订单号" allow-clear />
+        <a-form-item label="订单ID">
+          <a-input-number v-model="searchForm.orderId" placeholder="输入订单ID" allow-clear />
         </a-form-item>
-        <a-form-item label="配送单号">
-          <a-input v-model="searchForm.deliveryNo" placeholder="输入配送单号" allow-clear />
+        <a-form-item label="物流单号">
+          <a-input v-model="searchForm.trackingNo" placeholder="输入物流单号" allow-clear />
         </a-form-item>
-        <a-form-item label="收货人">
-          <a-input v-model="searchForm.deliveryName" placeholder="输入收货人姓名" allow-clear />
-        </a-form-item>
-        <a-form-item label="联系电话">
-          <a-input v-model="searchForm.deliveryPhone" placeholder="输入联系电话" allow-clear />
+        <a-form-item label="物流公司">
+          <a-input v-model="searchForm.shipper" placeholder="输入物流公司" allow-clear />
         </a-form-item>
         <a-form-item label="配送状态">
-          <a-select v-model="searchForm.status" placeholder="请选择" allow-clear>
-            <a-option value="">全部</a-option>
-            <a-option :value="1">待配送</a-option>
-            <a-option :value="2">配送中</a-option>
-            <a-option :value="3">已送达</a-option>
-            <a-option :value="4">配送失败</a-option>
-            <a-option :value="5">已取消</a-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="配送公司">
-          <a-select v-model="searchForm.deliveryCompany" placeholder="请选择" allow-clear>
-            <a-option value="">全部</a-option>
-            <a-option v-for="company in deliveryCompanies" :key="company" :value="company">
-              {{ company }}
+          <a-select v-model="searchForm.status" placeholder="选择配送状态" allow-clear>
+            <a-option value="">全部状态</a-option>
+            <a-option v-for="(text, status) in DELIVERY_STATUS_TEXT" :key="status" :value="status">
+              {{ text }}
             </a-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="创建时间">
-          <a-range-picker
-            v-model="searchForm.timeRange"
+        <a-form-item label="发货时间">
+          <a-range-picker 
+            v-model="searchForm.shipTimeRange" 
             show-time
             format="YYYY-MM-DD HH:mm:ss"
-            placeholder="[开始时间, 结束时间]"
+            @change="handleShipTimeRangeChange"
+          />
+        </a-form-item>
+        <a-form-item label="创建时间">
+          <a-range-picker 
+            v-model="searchForm.createTimeRange" 
+            show-time
+            format="YYYY-MM-DD HH:mm:ss"
+            @change="handleCreateTimeRangeChange"
           />
         </a-form-item>
         <a-form-item>
@@ -119,24 +61,11 @@
       <div>
         <a-button type="primary" @click="showCreateModal">
           <template #icon><icon-plus /></template>
-          新建配送
+          创建配送
         </a-button>
-        <a-button 
-          type="outline" 
-          status="danger" 
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchDelete"
-        >
-          <template #icon><icon-delete /></template>
-          批量删除
-        </a-button>
-        <a-button 
-          type="outline" 
-          :disabled="selectedRowKeys.length === 0"
-          @click="handleBatchUpdateStatus"
-        >
-          <template #icon><icon-edit /></template>
-          批量更新状态
+        <a-button @click="showStatsModal">
+          <template #icon><icon-bar-chart /></template>
+          配送统计
         </a-button>
       </div>
       <div>
@@ -153,43 +82,52 @@
         :data="deliveries" 
         :loading="loading"
         :pagination="pagination"
-        :row-selection="rowSelection"
         @page-change="handlePageChange"
         @page-size-change="handlePageSizeChange"
         row-key="id"
       >
         <template #columns>
-          <a-table-column title="配送单号" data-index="deliveryNo" :width="160">
+          <a-table-column title="配送ID" data-index="id" :width="100">
             <template #cell="{ record }">
-              <a-link @click="showDetail(record)">{{ record.deliveryNo }}</a-link>
+              <a-link @click="showDetail(record)">{{ record.id }}</a-link>
             </template>
           </a-table-column>
-          <a-table-column title="订单号" data-index="orderNo" :width="160">
+          <a-table-column title="订单ID" data-index="orderId" :width="100" />
+          <a-table-column title="物流单号" data-index="trackingNo" :width="150">
             <template #cell="{ record }">
-              <a-link @click="viewOrder(record.orderId)">{{ record.orderNo }}</a-link>
+              <span v-if="record.trackingNo">{{ record.trackingNo }}</span>
+              <span v-else class="text-gray">-</span>
             </template>
           </a-table-column>
-          <a-table-column title="配送公司" data-index="deliveryCompany" :width="120" />
-          <a-table-column title="收货人信息" :width="150">
+          <a-table-column title="物流公司" data-index="shipper" :width="120">
             <template #cell="{ record }">
-              <div>
-                <div class="delivery-name">{{ record.deliveryName }}</div>
-                <div class="delivery-phone">{{ record.deliveryPhone }}</div>
-              </div>
+              <span v-if="record.shipper">{{ record.shipper }}</span>
+              <span v-else class="text-gray">-</span>
             </template>
           </a-table-column>
-          <a-table-column title="收货地址" data-index="deliveryAddress" :width="250">
+          <a-table-column title="配送状态" data-index="status" :width="120">
             <template #cell="{ record }">
-              <a-tooltip :content="record.deliveryAddress">
-                <span class="address-text">{{ record.deliveryAddress }}</span>
-              </a-tooltip>
-            </template>
-          </a-table-column>
-          <a-table-column title="配送状态" data-index="status" :width="100">
-            <template #cell="{ record }">
-              <a-tag :color="getStatusColor(record.status)" class="status-tag">
-                {{ getStatusText(record.status) }}
+              <a-tag :color="DELIVERY_STATUS_COLOR[record.status]">
+                {{ DELIVERY_STATUS_TEXT[record.status] || record.status }}
               </a-tag>
+            </template>
+          </a-table-column>
+          <a-table-column title="预计送达" data-index="estimateTime" :width="160">
+            <template #cell="{ record }">
+              <span v-if="record.estimateTime">{{ formatDateTime(record.estimateTime) }}</span>
+              <span v-else class="text-gray">-</span>
+            </template>
+          </a-table-column>
+          <a-table-column title="发货时间" data-index="shipTime" :width="160">
+            <template #cell="{ record }">
+              <span v-if="record.shipTime">{{ formatDateTime(record.shipTime) }}</span>
+              <span v-else class="text-gray">-</span>
+            </template>
+          </a-table-column>
+          <a-table-column title="送达时间" data-index="deliveryTime" :width="160">
+            <template #cell="{ record }">
+              <span v-if="record.deliveryTime">{{ formatDateTime(record.deliveryTime) }}</span>
+              <span v-else class="text-gray">-</span>
             </template>
           </a-table-column>
           <a-table-column title="创建时间" data-index="createTime" :width="160">
@@ -199,446 +137,544 @@
           </a-table-column>
           <a-table-column title="操作" :width="200" fixed="right">
             <template #cell="{ record }">
-              <a-space>
-                <a-link @click="showDetail(record)" size="small">
-                  <icon-eye /> 查看
-                </a-link>
-                <a-link 
-                  v-if="record.status === 1" 
-                  @click="showEditModal(record)" 
-                  size="small"
-                >
-                  <icon-edit /> 编辑
-                </a-link>
-                <a-dropdown>
-                  <a-link size="small">
-                    <icon-more /> 更多
-                  </a-link>
-                  <template #content>
-                    <a-doption 
-                      v-if="canUpdateStatus(record.status, 2)"
-                      @click="updateDeliveryStatus(record, 2)"
-                    >
-                      开始配送
-                    </a-doption>
-                    <a-doption 
-                      v-if="canUpdateStatus(record.status, 3)"
-                      @click="updateDeliveryStatus(record, 3)"
-                    >
-                      标记送达
-                    </a-doption>
-                    <a-doption 
-                      v-if="canUpdateStatus(record.status, 4)"
-                      @click="updateDeliveryStatus(record, 4)"
-                    >
-                      配送失败
-                    </a-doption>
-                    <a-doption 
-                      v-if="record.status !== 5"
-                      @click="updateDeliveryStatus(record, 5)"
-                    >
-                      取消配送
-                    </a-doption>
-                    <a-doption 
-                      v-if="record.deliveryNo"
-                      @click="trackDelivery(record)"
-                    >
-                      物流跟踪
-                    </a-doption>
-                    <a-doption 
-                      v-if="record.status === 1"
-                      @click="deleteDelivery(record.id)"
-                      class="danger"
-                    >
-                      删除配送
-                    </a-doption>
-                  </template>
-                </a-dropdown>
-              </a-space>
+              <a-dropdown>
+                <a-button type="text">
+                  操作
+                  <template #icon><icon-down /></template>
+                </a-button>
+                <template #content>
+                  <a-doption @click="showDetail(record)">
+                    <template #icon><icon-eye /></template>
+                    查看详情
+                  </a-doption>
+                  <a-doption @click="handleAction('edit', record)">
+                    <template #icon><icon-edit /></template>
+                    编辑配送
+                  </a-doption>
+                  <a-doption @click="handleAction('ship', record)" v-if="record.status === 'PENDING'">
+                    <template #icon><icon-send /></template>
+                    发货
+                  </a-doption>
+                  <a-doption @click="handleAction('updateStatus', record)">
+                    <template #icon><icon-settings /></template>
+                    更新状态
+                  </a-doption>
+                  <a-doption @click="handleAction('track', record)" v-if="record.trackingNo">
+                    <template #icon><icon-location /></template>
+                    物流跟踪
+                  </a-doption>
+                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'DELIVERED'">
+                    <template #icon><icon-check /></template>
+                    确认收货
+                  </a-doption>
+                  <a-doption @click="handleAction('delete', record)" class="danger">
+                    <template #icon><icon-delete /></template>
+                    删除
+                  </a-doption>
+                </template>
+              </a-dropdown>
             </template>
           </a-table-column>
         </template>
       </a-table>
     </a-card>
 
-    <!-- 新建配送模态框 -->
+    <!-- 创建配送模态框 -->
     <a-modal 
       v-model:visible="createModalVisible" 
-      title="新建配送"
-      width="600px"
-      @ok="handleCreate"
+      title="创建配送信息" 
+      width="800px"
+      @ok="handleCreateDelivery"
       @cancel="resetCreateForm"
     >
-      <a-form :model="createForm" :rules="formRules" layout="vertical" ref="createFormRef">
-        <a-form-item label="关联订单" field="orderId" required>
-          <a-select 
-            v-model="createForm.orderId" 
-            placeholder="请选择订单"
-            @change="handleOrderChange"
-          >
-            <a-option v-for="order in availableOrders" :key="order.id" :value="order.id">
-              {{ order.orderNo }} - {{ order.customerName }}
-            </a-option>
-          </a-select>
-        </a-form-item>
-        
+      <a-form 
+        ref="createFormRef" 
+        :model="createForm" 
+        :rules="createRules" 
+        layout="vertical"
+      >
         <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="配送公司" field="deliveryCompany" required>
-              <a-select v-model="createForm.deliveryCompany" placeholder="请选择配送公司">
-                <a-option v-for="company in deliveryCompanies" :key="company" :value="company">
-                  {{ company }}
+          <a-col :span="24">
+            <a-form-item label="选择订单" field="orderId">
+              <a-select 
+                v-model="createForm.orderId" 
+                placeholder="请选择订单"
+                @change="handleOrderSelect"
+                allow-search
+              >
+                <a-option 
+                  v-for="order in orderOptions" 
+                  :key="order.id" 
+                  :value="order.id"
+                >
+                  订单#{{ order.id }} - {{ order.customerName }} - ¥{{ order.totalAmount }}
                 </a-option>
               </a-select>
             </a-form-item>
           </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="配送单号" field="deliveryNo">
-              <a-input v-model="createForm.deliveryNo" placeholder="配送单号（可选）" />
+            <a-form-item label="收货人姓名" field="consigneeName">
+              <a-input v-model="createForm.consigneeName" placeholder="请输入收货人姓名" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="收货人电话" field="consigneePhone">
+              <a-input v-model="createForm.consigneePhone" placeholder="请输入收货人电话" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="24">
+            <a-form-item label="配送地址" field="deliveryAddress">
+              <a-textarea 
+                v-model="createForm.deliveryAddress" 
+                placeholder="请输入配送地址"
+                :rows="2"
+              />
             </a-form-item>
           </a-col>
         </a-row>
         
         <a-row :gutter="16">
           <a-col :span="12">
-            <a-form-item label="收货人" field="deliveryName" required>
-              <a-input v-model="createForm.deliveryName" placeholder="请输入收货人姓名" />
+            <a-form-item label="物流单号" field="trackingNo">
+              <a-input v-model="createForm.trackingNo" placeholder="请输入物流单号（可选）" />
             </a-form-item>
           </a-col>
           <a-col :span="12">
-            <a-form-item label="联系电话" field="deliveryPhone" required>
-              <a-input v-model="createForm.deliveryPhone" placeholder="请输入联系电话" />
+            <a-form-item label="物流公司" field="shipper">
+              <a-input v-model="createForm.shipper" placeholder="请输入物流公司（可选）" />
             </a-form-item>
           </a-col>
         </a-row>
         
-        <a-form-item label="收货地址" field="deliveryAddress" required>
-          <a-textarea 
-            v-model="createForm.deliveryAddress" 
-            placeholder="请输入详细收货地址" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="预计送达时间" field="estimateTime">
+              <a-date-picker 
+                v-model="createForm.estimateTime" 
+                placeholder="请选择预计送达时间（可选）"
+                style="width: 100%"
+                show-time
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="备注" field="remark">
+              <a-input v-model="createForm.remark" placeholder="请输入备注（可选）" />
+            </a-form-item>
+          </a-col>
+        </a-row>
         
-        <a-form-item label="邮政编码" field="deliveryPostcode">
-          <a-input v-model="createForm.deliveryPostcode" placeholder="请输入邮政编码" />
-        </a-form-item>
-        
-        <a-form-item label="备注" field="remark">
-          <a-textarea 
-            v-model="createForm.remark" 
-            placeholder="配送备注信息" 
-            :auto-size="{ minRows: 2 }"
-          />
-        </a-form-item>
+        <!-- 订单信息预览 -->
+        <a-divider v-if="selectedOrder" orientation="left">订单信息预览</a-divider>
+        <a-descriptions v-if="selectedOrder" :column="2" bordered>
+          <a-descriptions-item label="订单编号">{{ selectedOrder.id }}</a-descriptions-item>
+          <a-descriptions-item label="客户姓名">{{ selectedOrder.customerName }}</a-descriptions-item>
+          <a-descriptions-item label="订单金额">¥{{ selectedOrder.totalAmount }}</a-descriptions-item>
+          <a-descriptions-item label="订单状态">{{ selectedOrder.status }}</a-descriptions-item>
+          <a-descriptions-item label="创建时间" :span="2">{{ selectedOrder.createTime }}</a-descriptions-item>
+        </a-descriptions>
       </a-form>
     </a-modal>
 
     <!-- 编辑配送模态框 -->
     <a-modal 
       v-model:visible="editModalVisible" 
-      title="编辑配送"
+      title="编辑配送信息" 
       width="600px"
-      @ok="handleUpdate"
+      @ok="handleUpdateDelivery"
       @cancel="resetEditForm"
     >
-      <a-form :model="editForm" :rules="editFormRules" layout="vertical" ref="editFormRef">
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="配送公司" field="deliveryCompany" required>
-              <a-select v-model="editForm.deliveryCompany" placeholder="请选择配送公司">
-                <a-option v-for="company in deliveryCompanies" :key="company" :value="company">
-                  {{ company }}
-                </a-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="配送单号" field="deliveryNo">
-              <a-input v-model="editForm.deliveryNo" placeholder="配送单号" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        
-        <a-row :gutter="16">
-          <a-col :span="12">
-            <a-form-item label="收货人" field="deliveryName" required>
-              <a-input v-model="editForm.deliveryName" placeholder="请输入收货人姓名" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="联系电话" field="deliveryPhone" required>
-              <a-input v-model="editForm.deliveryPhone" placeholder="请输入联系电话" />
-            </a-form-item>
-          </a-col>
-        </a-row>
-        
-        <a-form-item label="收货地址" field="deliveryAddress" required>
-          <a-textarea 
-            v-model="editForm.deliveryAddress" 
-            placeholder="请输入详细收货地址" 
-            :auto-size="{ minRows: 2 }"
-          />
+      <a-form 
+        ref="editFormRef" 
+        :model="editForm" 
+        :rules="editRules" 
+        layout="vertical"
+      >
+        <a-form-item label="物流单号" field="trackingNo">
+          <a-input v-model="editForm.trackingNo" placeholder="输入物流单号" />
         </a-form-item>
-        
-        <a-form-item label="邮政编码" field="deliveryPostcode">
-          <a-input v-model="editForm.deliveryPostcode" placeholder="请输入邮政编码" />
+        <a-form-item label="物流公司" field="shipper">
+          <a-input v-model="editForm.shipper" placeholder="输入物流公司" />
         </a-form-item>
-        
-        <a-form-item label="备注" field="remark">
-          <a-textarea 
-            v-model="editForm.remark" 
-            placeholder="配送备注信息" 
-            :auto-size="{ minRows: 2 }"
+        <a-form-item label="预计送达时间" field="estimateTime">
+          <a-date-picker 
+            v-model="editForm.estimateTime" 
+            show-time
+            format="YYYY-MM-DD HH:mm:ss"
+            placeholder="选择预计送达时间"
           />
         </a-form-item>
       </a-form>
     </a-modal>
-    
+
+    <!-- 发货模态框 -->
+    <a-modal 
+      v-model:visible="shipModalVisible" 
+      title="发货" 
+      width="500px"
+      @ok="handleShip"
+      @cancel="resetShipForm"
+    >
+      <a-form 
+        ref="shipFormRef" 
+        :model="shipForm" 
+        :rules="shipRules" 
+        layout="vertical"
+      >
+        <a-form-item label="物流单号" field="trackingNo">
+          <a-input v-model="shipForm.trackingNo" placeholder="输入物流单号" />
+        </a-form-item>
+        <a-form-item label="物流公司" field="shipper">
+          <a-input v-model="shipForm.shipper" placeholder="输入物流公司" />
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
+    <!-- 状态更新模态框 -->
+    <a-modal 
+      v-model:visible="statusModalVisible" 
+      title="更新配送状态" 
+      width="400px"
+      @ok="handleUpdateStatus"
+      @cancel="resetStatusForm"
+    >
+      <a-form 
+        ref="statusFormRef" 
+        :model="statusForm" 
+        :rules="statusRules" 
+        layout="vertical"
+      >
+        <a-form-item label="配送状态" field="status">
+          <a-select v-model="statusForm.status" placeholder="选择配送状态">
+            <a-option v-for="(text, status) in DELIVERY_STATUS_TEXT" :key="status" :value="status">
+              {{ text }}
+            </a-option>
+          </a-select>
+        </a-form-item>
+      </a-form>
+    </a-modal>
+
     <!-- 配送详情抽屉 -->
     <a-drawer 
-      v-model:visible="detailVisible" 
-      title="配送详情"
-      placement="right"
+      v-model:visible="detailDrawerVisible" 
+      title="配送详情" 
       width="600px"
     >
       <div v-if="currentDelivery" class="delivery-detail">
-        <!-- 基本信息 -->
-        <a-descriptions title="基本信息" :column="2" bordered>
-          <a-descriptions-item label="配送单号">{{ currentDelivery.deliveryNo || '-' }}</a-descriptions-item>
-          <a-descriptions-item label="订单号">{{ currentDelivery.orderNo }}</a-descriptions-item>
-          <a-descriptions-item label="配送公司">{{ currentDelivery.deliveryCompany }}</a-descriptions-item>
+        <a-descriptions :column="1" bordered>
+          <a-descriptions-item label="配送ID">{{ currentDelivery.id }}</a-descriptions-item>
+          <a-descriptions-item label="订单ID">{{ currentDelivery.orderId }}</a-descriptions-item>
+          <a-descriptions-item label="物流单号">
+            <span v-if="currentDelivery.trackingNo">{{ currentDelivery.trackingNo }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="物流公司">
+            <span v-if="currentDelivery.shipper">{{ currentDelivery.shipper }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
           <a-descriptions-item label="配送状态">
-            <a-tag :color="getStatusColor(currentDelivery.status)">
-              {{ getStatusText(currentDelivery.status) }}
+            <a-tag :color="DELIVERY_STATUS_COLOR[currentDelivery.status]">
+              {{ DELIVERY_STATUS_TEXT[currentDelivery.status] || currentDelivery.status }}
             </a-tag>
+          </a-descriptions-item>
+          <a-descriptions-item label="预计送达时间">
+            <span v-if="currentDelivery.estimateTime">{{ formatDateTime(currentDelivery.estimateTime) }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="发货时间">
+            <span v-if="currentDelivery.shipTime">{{ formatDateTime(currentDelivery.shipTime) }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="送达时间">
+            <span v-if="currentDelivery.deliveryTime">{{ formatDateTime(currentDelivery.deliveryTime) }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="确认时间">
+            <span v-if="currentDelivery.confirmTime">{{ formatDateTime(currentDelivery.confirmTime) }}</span>
+            <span v-else class="text-gray">-</span>
           </a-descriptions-item>
           <a-descriptions-item label="创建时间">{{ formatDateTime(currentDelivery.createTime) }}</a-descriptions-item>
           <a-descriptions-item label="更新时间">{{ formatDateTime(currentDelivery.updateTime) }}</a-descriptions-item>
         </a-descriptions>
-        
-        <!-- 收货信息 -->
-        <a-divider>收货信息</a-divider>
-        <a-descriptions :column="1" bordered>
-          <a-descriptions-item label="收货人">{{ currentDelivery.deliveryName }}</a-descriptions-item>
-          <a-descriptions-item label="联系电话">{{ currentDelivery.deliveryPhone }}</a-descriptions-item>
-          <a-descriptions-item label="收货地址">{{ currentDelivery.deliveryAddress }}</a-descriptions-item>
-          <a-descriptions-item label="邮政编码">{{ currentDelivery.deliveryPostcode || '-' }}</a-descriptions-item>
-        </a-descriptions>
-        
-        <!-- 时间信息 -->
-        <a-divider>时间信息</a-divider>
-        <a-descriptions :column="1" bordered>
-          <a-descriptions-item label="创建时间">{{ formatDateTime(currentDelivery.createTime) }}</a-descriptions-item>
-          <a-descriptions-item label="开始配送时间">{{ currentDelivery.startTime ? formatDateTime(currentDelivery.startTime) : '-' }}</a-descriptions-item>
-          <a-descriptions-item label="送达时间">{{ currentDelivery.deliveredTime ? formatDateTime(currentDelivery.deliveredTime) : '-' }}</a-descriptions-item>
-          <a-descriptions-item label="完成时间">{{ currentDelivery.completeTime ? formatDateTime(currentDelivery.completeTime) : '-' }}</a-descriptions-item>
-        </a-descriptions>
-        
-        <!-- 备注信息 -->
-        <a-divider>备注信息</a-divider>
-        <p>{{ currentDelivery.remark || '无备注' }}</p>
-        
-        <!-- 物流跟踪 -->
-        <a-divider>物流跟踪</a-divider>
-        <div v-if="trackingInfo.length > 0">
-          <a-timeline>
-            <a-timeline-item 
-              v-for="(item, index) in trackingInfo" 
-              :key="index"
-              :color="index === 0 ? 'blue' : 'gray'"
-            >
-              <div class="tracking-item">
-                <div class="tracking-time">{{ item.time }}</div>
-                <div class="tracking-desc">{{ item.description }}</div>
-                <div class="tracking-location">{{ item.location }}</div>
-              </div>
-            </a-timeline-item>
-          </a-timeline>
-        </div>
-        <div v-else class="empty-tracking">
-          <a-empty description="暂无物流信息" />
-          <a-button 
-            v-if="currentDelivery.deliveryNo" 
-            type="primary" 
-            @click="trackDelivery(currentDelivery)"
-          >
-            获取物流信息
-          </a-button>
-        </div>
       </div>
     </a-drawer>
-    
-    <!-- 批量状态更新模态框 -->
+
+    <!-- 配送统计模态框 -->
     <a-modal 
-      v-model:visible="batchStatusModalVisible" 
-      title="批量更新状态"
-      width="400px"
-      @ok="confirmBatchUpdateStatus"
+      v-model:visible="statsModalVisible" 
+      title="配送统计" 
+      width="800px"
+      :footer="false"
     >
-      <a-form layout="vertical">
-        <a-form-item label="选择状态">
-          <a-select v-model="batchStatus" placeholder="请选择新状态">
-            <a-option :value="2">配送中</a-option>
-            <a-option :value="3">已送达</a-option>
-            <a-option :value="4">配送失败</a-option>
-            <a-option :value="5">已取消</a-option>
-          </a-select>
-        </a-form-item>
-        <p class="batch-tip">将更新 {{ selectedRowKeys.length }} 个配送记录的状态</p>
-      </a-form>
+      <div v-if="deliveryStats" class="stats-content">
+        <a-row :gutter="16">
+          <a-col :span="6">
+            <a-statistic title="总配送数" :value="deliveryStats.total" />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic title="待发货" :value="deliveryStats.pending" />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic title="已发货" :value="deliveryStats.shipped" />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic title="已送达" :value="deliveryStats.delivered" />
+          </a-col>
+        </a-row>
+      </div>
+    </a-modal>
+
+    <!-- 物流跟踪模态框 -->
+    <a-modal 
+      v-model:visible="trackModalVisible" 
+      title="物流跟踪" 
+      width="600px"
+      :footer="false"
+    >
+      <div v-if="trackingInfo" class="tracking-info">
+        <a-timeline>
+          <a-timeline-item v-for="(item, index) in trackingInfo" :key="index">
+            <div class="tracking-item">
+              <div class="tracking-time">{{ item.time }}</div>
+              <div class="tracking-desc">{{ item.description }}</div>
+              <div class="tracking-location" v-if="item.location">{{ item.location }}</div>
+            </div>
+          </a-timeline-item>
+        </a-timeline>
+      </div>
+      <div v-else class="no-tracking">
+        <a-empty description="暂无物流信息" />
+      </div>
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { Message, Modal } from '@arco-design/web-vue'
+import {
+  IconSearch,
+  IconRefresh,
+  IconPlus,
+  IconBarChart,
+  IconDownload,
+  IconDown,
+  IconEye,
+  IconEdit,
+  IconSend,
+  IconSettings,
+  IconLocation,
+  IconCheck,
+  IconDelete
+} from '@arco-design/web-vue/es/icon'
 import {
   getDeliveriesApi,
   searchDeliveriesApi,
   getDeliveryDetailApi,
+  getDeliveryByOrderIdApi,
   createDeliveryApi,
   updateDeliveryApi,
   deleteDeliveryApi,
   updateDeliveryStatusApi,
-  batchDeleteDeliveriesApi,
-  batchUpdateDeliveryStatusApi,
+  shipDeliveryApi,
+  confirmDeliveryApi,
   getDeliveryStatsApi,
-  getDeliveryCompaniesApi,
   trackDeliveryApi,
   exportDeliveriesApi
 } from '@/api/delivery'
-import { getOrdersApi } from '@/api/order'
-import { Message, Modal } from '@arco-design/web-vue'
-import dayjs from 'dayjs'
+import { getSimpleOrdersApi } from '@/api/order'
 
-// 数据状态
+// 配送状态映射
+const DELIVERY_STATUS_TEXT = {
+  PENDING: '待发货',
+  SHIPPED: '已发货',
+  DELIVERED: '已送达',
+  CONFIRMED: '已确认',
+  CANCELLED: '已取消'
+}
+
+const DELIVERY_STATUS_COLOR = {
+  PENDING: 'orange',
+  SHIPPED: 'blue',
+  DELIVERED: 'green',
+  CONFIRMED: 'arcoblue',
+  CANCELLED: 'red'
+}
+
+// 响应式数据
 const loading = ref(false)
 const deliveries = ref([])
-const availableOrders = ref([])
-const deliveryCompanies = ref([])
-const trackingInfo = ref([])
-const stats = ref({
-  totalDeliveries: 0,
-  deliveringCount: 0,
-  completedCount: 0,
-  successRate: 0
-})
-
-// 分页配置
-const pagination = reactive({
-  total: 0,
-  current: 1,
-  pageSize: 10,
-  showTotal: true,
-  showPageSize: true,
-})
 
 // 搜索表单
 const searchForm = reactive({
-  orderNo: '',
-  deliveryNo: '',
-  deliveryName: '',
-  deliveryPhone: '',
+  orderId: null,
+  trackingNo: '',
+  shipper: '',
   status: '',
-  deliveryCompany: '',
-  timeRange: []
+  shipTimeRange: [],
+  createTimeRange: [],
+  shipTimeStart: '',
+  shipTimeEnd: '',
+  createTimeStart: '',
+  createTimeEnd: ''
 })
 
-// 表格选择
-const selectedRowKeys = ref([])
-const rowSelection = reactive({
-  type: 'checkbox',
-  showCheckedAll: true,
-  onlyCurrent: false,
+// 分页
+const pagination = reactive({
+  current: 1,
+  pageSize: 10,
+  total: 0,
+  showTotal: true,
+  showPageSize: true,
+  pageSizeOptions: ['10', '20', '50', '100']
 })
 
-// 模态框控制
+// 创建配送模态框
 const createModalVisible = ref(false)
-const editModalVisible = ref(false)
-const detailVisible = ref(false)
-const batchStatusModalVisible = ref(false)
-const currentDelivery = ref(null)
-const currentEditDelivery = ref(null)
-const batchStatus = ref(null)
-
-// 表单引用
 const createFormRef = ref()
-const editFormRef = ref()
-
-// 创建配送表单
 const createForm = reactive({
   orderId: null,
-  deliveryCompany: '',
-  deliveryNo: '',
-  deliveryName: '',
-  deliveryPhone: '',
+  trackingNo: '',
+  shipper: '',
+  consigneeName: '',
+  consigneePhone: '',
   deliveryAddress: '',
-  deliveryPostcode: '',
+  estimateTime: '',
   remark: ''
 })
 
-// 编辑配送表单
+const createRules = {
+  orderId: [
+    { required: true, message: '请选择订单' }
+  ],
+  consigneeName: [
+    { required: true, message: '请输入收货人姓名' }
+  ],
+  consigneePhone: [
+    { required: true, message: '请输入收货人电话' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
+  ],
+  deliveryAddress: [
+    { required: true, message: '请输入配送地址' }
+  ]
+}
+
+// 订单列表
+const orderOptions = ref([])
+const selectedOrder = ref(null)
+
+// 编辑配送模态框
+const editModalVisible = ref(false)
+const editFormRef = ref()
 const editForm = reactive({
-  deliveryCompany: '',
-  deliveryNo: '',
-  deliveryName: '',
-  deliveryPhone: '',
-  deliveryAddress: '',
-  deliveryPostcode: '',
-  remark: ''
+  id: null,
+  orderId: null,
+  trackingNo: '',
+  shipper: '',
+  estimateTime: ''
 })
 
-// 表单验证规则
-const formRules = {
-  orderId: [{ required: true, message: '请选择订单' }],
-  deliveryCompany: [{ required: true, message: '请选择配送公司' }],
-  deliveryName: [{ required: true, message: '请输入收货人姓名' }],
-  deliveryPhone: [
-    { required: true, message: '请输入联系电话' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
+const editRules = {
+  trackingNo: [
+    { required: false, message: '请输入物流单号' }
   ],
-  deliveryAddress: [{ required: true, message: '请输入收货地址' }]
+  shipper: [
+    { required: false, message: '请输入物流公司' }
+  ]
 }
 
-const editFormRules = {
-  deliveryCompany: [{ required: true, message: '请选择配送公司' }],
-  deliveryName: [{ required: true, message: '请输入收货人姓名' }],
-  deliveryPhone: [
-    { required: true, message: '请输入联系电话' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
-  ],
-  deliveryAddress: [{ required: true, message: '请输入收货地址' }]
-}
-
-// 初始化
-onMounted(() => {
-  fetchDeliveries()
-  fetchDeliveryCompanies()
-  fetchStats()
+// 发货模态框
+const shipModalVisible = ref(false)
+const shipFormRef = ref()
+const shipForm = reactive({
+  orderId: null,
+  trackingNo: '',
+  shipper: ''
 })
 
-// 获取配送统计
-const fetchStats = async () => {
-  try {
-    const { data } = await getDeliveryStatsApi()
-    stats.value = data
-  } catch (error) {
-    console.error('获取统计信息失败:', error)
-  }
+const shipRules = {
+  trackingNo: [
+    { required: true, message: '请输入物流单号' }
+  ],
+  shipper: [
+    { required: true, message: '请输入物流公司' }
+  ]
 }
 
-// 获取配送列表
-const fetchDeliveries = async () => {
-  loading.value = true
+// 状态更新模态框
+const statusModalVisible = ref(false)
+const statusFormRef = ref()
+const statusForm = reactive({
+  orderId: null,
+  status: ''
+})
+
+const statusRules = {
+  status: [
+    { required: true, message: '请选择配送状态' }
+  ]
+}
+
+// 配送详情抽屉
+const detailDrawerVisible = ref(false)
+const currentDelivery = ref(null)
+
+// 配送统计模态框
+const statsModalVisible = ref(false)
+const deliveryStats = ref(null)
+
+// 物流跟踪模态框
+const trackModalVisible = ref(false)
+const trackingInfo = ref(null)
+
+// 加载配送列表
+const loadDeliveries = async () => {
   try {
-    const { data } = await getDeliveriesApi({
+    loading.value = true
+    const params = {
       pageNum: pagination.current,
-      pageSize: pagination.pageSize
+      pageSize: pagination.pageSize,
+      ...searchForm
+    }
+    
+    // 移除空值
+    Object.keys(params).forEach(key => {
+      if (params[key] === '' || params[key] === null || params[key] === undefined) {
+        delete params[key]
+      }
     })
     
-    deliveries.value = data.list
-    pagination.total = data.total
+    const response = await getDeliveriesApi(params)
+    
+    if (response.code === 200) {      
+      // 根据后端实际返回的数据结构调整
+      if (response.data && response.data.data && response.data.data.list) {
+        // 如果是嵌套的PageInfo结构
+        deliveries.value = response.data.data.list || []
+        pagination.total = response.data.data.total || 0
+      } else if (response.data && response.data.records) {
+        // 如果是直接的records结构
+        deliveries.value = response.data.records || []
+        pagination.total = response.data.total || 0
+      } else if (response.data && Array.isArray(response.data)) {
+        // 如果直接返回数组
+        deliveries.value = response.data || []
+        pagination.total = response.data.length || 0
+      } else {
+        // 其他情况
+        deliveries.value = []
+        pagination.total = 0
+      }
+      
+    } else {
+      Message.error(response.message || '获取配送列表失败')
+    }
   } catch (error) {
     Message.error('获取配送列表失败')
   } finally {
@@ -646,338 +682,579 @@ const fetchDeliveries = async () => {
   }
 }
 
-// 获取配送公司列表
-const fetchDeliveryCompanies = async () => {
-  try {
-    const { data } = await getDeliveryCompaniesApi()
-    deliveryCompanies.value = data
-  } catch (error) {
-    Message.error('获取配送公司列表失败')
-  }
-}
-
-// 获取可用订单列表
-const fetchAvailableOrders = async () => {
-  try {
-    const { data } = await getOrdersApi({ status: 3 }) // 待发货订单
-    availableOrders.value = data.list || []
-  } catch (error) {
-    Message.error('获取订单列表失败')
-  }
-}
-
-// 搜索配送
+// 搜索
 const handleSearch = async () => {
-  loading.value = true
-  try {
-    const params = {
-      ...searchForm,
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize
-    }
-    
-    // 处理时间范围
-    if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      params.startTime = dayjs(searchForm.timeRange[0]).format('YYYY-MM-DD HH:mm:ss')
-      params.endTime = dayjs(searchForm.timeRange[1]).format('YYYY-MM-DD HH:mm:ss')
-    }
-    delete params.timeRange
-    
-    const { data } = await searchDeliveriesApi(params)
-    
-    deliveries.value = data.list
-    pagination.total = data.total
-  } catch (error) {
-    Message.error('搜索配送失败')
-  } finally {
-    loading.value = false
-  }
+  pagination.current = 1
+  await loadDeliveries()
 }
 
 // 重置搜索
 const handleReset = () => {
-  Object.keys(searchForm).forEach(key => {
-    if (key === 'timeRange') {
-      searchForm[key] = []
-    } else {
-      searchForm[key] = ''
-    }
+  Object.assign(searchForm, {
+    orderId: null,
+    trackingNo: '',
+    shipper: '',
+    status: '',
+    shipTimeRange: [],
+    createTimeRange: [],
+    shipTimeStart: '',
+    shipTimeEnd: '',
+    createTimeStart: '',
+    createTimeEnd: ''
   })
   pagination.current = 1
-  fetchDeliveries()
+  loadDeliveries()
+}
+
+// 时间范围变化处理
+const handleShipTimeRangeChange = (value) => {
+  if (value && value.length === 2) {
+    searchForm.shipTimeStart = value[0]
+    searchForm.shipTimeEnd = value[1]
+  } else {
+    searchForm.shipTimeStart = ''
+    searchForm.shipTimeEnd = ''
+  }
+}
+
+const handleCreateTimeRangeChange = (value) => {
+  if (value && value.length === 2) {
+    searchForm.createTimeStart = value[0]
+    searchForm.createTimeEnd = value[1]
+  } else {
+    searchForm.createTimeStart = ''
+    searchForm.createTimeEnd = ''
+  }
 }
 
 // 分页处理
-const handlePageChange = (pageNum) => {
-  pagination.current = pageNum
-  handleSearch()
+const handlePageChange = (page) => {
+  pagination.current = page
+  loadDeliveries()
 }
 
 const handlePageSizeChange = (pageSize) => {
   pagination.pageSize = pageSize
   pagination.current = 1
-  handleSearch()
+  loadDeliveries()
 }
 
-// 显示创建模态框
-const showCreateModal = () => {
-  fetchAvailableOrders()
-  createModalVisible.value = true
+// 加载订单列表
+const loadOrderOptions = async () => {
+  try {
+    const response = await getSimpleOrdersApi()
+    if (response.code === 200) {
+      orderOptions.value = response.data || []
+    } else {
+      Message.error('获取订单列表失败')
+    }
+  } catch (error) {
+    Message.error('获取订单列表失败')
+  }
 }
 
 // 处理订单选择
-const handleOrderChange = (orderId) => {
-  const order = availableOrders.value.find(o => o.id === orderId)
+const handleOrderSelect = (orderId) => {
+  const order = orderOptions.value.find(o => o.id === orderId)
   if (order) {
-    createForm.deliveryName = order.deliveryName
-    createForm.deliveryPhone = order.deliveryPhone
-    createForm.deliveryAddress = order.deliveryAddress
-    createForm.deliveryPostcode = order.deliveryPostcode
+    selectedOrder.value = order
+    // 自动填充订单相关信息
+    createForm.consigneeName = order.customerName || ''
+    createForm.consigneePhone = order.customerPhone || ''
+    createForm.deliveryAddress = order.deliveryAddress || ''
   }
 }
 
-// 创建配送
-const handleCreate = async () => {
-  try {
-    const valid = await createFormRef.value.validate()
-    if (!valid) return
-    
-    await createDeliveryApi(createForm)
-    Message.success('创建成功')
-    createModalVisible.value = false
-    resetCreateForm()
-    fetchDeliveries()
-    fetchStats()
-  } catch (error) {
-    Message.error(error.message || '创建失败')
-  }
+// 显示创建模态框
+const showCreateModal = async () => {
+  await loadOrderOptions()
+  createModalVisible.value = true
 }
 
 // 重置创建表单
 const resetCreateForm = () => {
-  Object.keys(createForm).forEach(key => {
-    if (key === 'orderId') {
-      createForm[key] = null
-    } else {
-      createForm[key] = ''
-    }
+  Object.assign(createForm, {
+    orderId: null,
+    trackingNo: '',
+    shipper: '',
+    consigneeName: '',
+    consigneePhone: '',
+    deliveryAddress: '',
+    estimateTime: '',
+    remark: ''
   })
+  selectedOrder.value = null
   createFormRef.value?.resetFields()
 }
 
-// 显示编辑模态框
-const showEditModal = (delivery) => {
-  currentEditDelivery.value = delivery
-  Object.assign(editForm, {
-    deliveryCompany: delivery.deliveryCompany,
-    deliveryNo: delivery.deliveryNo,
-    deliveryName: delivery.deliveryName,
-    deliveryPhone: delivery.deliveryPhone,
-    deliveryAddress: delivery.deliveryAddress,
-    deliveryPostcode: delivery.deliveryPostcode,
-    remark: delivery.remark
+// 创建配送
+const handleCreateDelivery = async () => {
+  const startTime = Date.now()
+  console.log('=== 开始创建配送信息流程 ===', {
+    timestamp: new Date().toISOString(),
+    formData: JSON.parse(JSON.stringify(createForm))
   })
-  editModalVisible.value = true
-}
-
-// 更新配送
-const handleUpdate = async () => {
+  
   try {
-    const valid = await editFormRef.value.validate()
-    if (!valid) return
+    // 步骤1: 表单验证
+    console.log('步骤1: 开始表单验证...', {
+      currentFormData: JSON.parse(JSON.stringify(createForm)),
+      requiredFields: ['orderId', 'consigneeName', 'consigneePhone', 'deliveryAddress']
+    })
+    const validationStart = Date.now()
     
-    await updateDeliveryApi(currentEditDelivery.value.id, editForm)
-    Message.success('更新成功')
-    editModalVisible.value = false
-    resetEditForm()
-    fetchDeliveries()
+    try {
+      // Arco Design的validate方法在验证失败时会reject，成功时resolve undefined
+      await createFormRef.value?.validate()
+      
+      console.log('✓ 表单验证通过', {
+        validationTime: Date.now() - validationStart + 'ms',
+        formData: {
+          orderId: createForm.orderId,
+          consigneeName: createForm.consigneeName,
+          consigneePhone: createForm.consigneePhone,
+          deliveryAddress: createForm.deliveryAddress
+        }
+      })
+    } catch (validationError) {
+      // 检查具体哪些字段验证失败
+      const emptyRequiredFields = []
+      const invalidFields = []
+      
+      if (!createForm.orderId) emptyRequiredFields.push('订单')
+      if (!createForm.consigneeName) emptyRequiredFields.push('收货人姓名')
+      if (!createForm.consigneePhone) {
+        emptyRequiredFields.push('收货人电话')
+      } else if (!/^1[3-9]\d{9}$/.test(createForm.consigneePhone)) {
+        invalidFields.push('收货人电话格式不正确')
+      }
+      if (!createForm.deliveryAddress) emptyRequiredFields.push('配送地址')
+      
+      console.warn('✗ 表单验证失败，停止创建流程', {
+        validationTime: Date.now() - validationStart + 'ms',
+        validationError: validationError,
+        emptyRequiredFields: emptyRequiredFields,
+        invalidFields: invalidFields,
+        formData: {
+          orderId: createForm.orderId || '未选择',
+          consigneeName: createForm.consigneeName || '未填写',
+          consigneePhone: createForm.consigneePhone || '未填写',
+          deliveryAddress: createForm.deliveryAddress || '未填写'
+        }
+      })
+      
+      // 给用户更明确的提示
+      if (emptyRequiredFields.length > 0) {
+        Message.error(`请填写必填字段: ${emptyRequiredFields.join('、')}`)
+      } else if (invalidFields.length > 0) {
+        Message.error(`字段格式错误: ${invalidFields.join('、')}`)
+      } else {
+        Message.error('表单验证失败，请检查输入内容')
+      }
+      
+      return
+    }
+    
+    console.log('✓ 表单验证通过', {
+      validationTime: Date.now() - validationStart + 'ms'
+    })
+    
+    // 步骤2: 数据准备和验证
+    console.log('步骤2: 准备请求数据...')
+    const data = {
+      orderId: createForm.orderId,
+      trackingNo: createForm.trackingNo,
+      shipper: createForm.shipper,
+      consigneeName: createForm.consigneeName,
+      consigneePhone: createForm.consigneePhone,
+      deliveryAddress: createForm.deliveryAddress,
+      estimateTime: createForm.estimateTime,
+      remark: createForm.remark
+    }
+    
+    // 数据完整性检查
+    const requiredFields = ['orderId', 'consigneeName', 'consigneePhone', 'deliveryAddress']
+    const missingFields = requiredFields.filter(field => !data[field])
+    
+    if (missingFields.length > 0) {
+      console.error('必填字段缺失:', missingFields)
+      Message.error(`请填写必填字段: ${missingFields.join(', ')}`)
+      return
+    }
+    
+    console.log('✓ 数据准备完成', {
+      dataSize: JSON.stringify(data).length + ' bytes',
+      requiredFieldsCheck: '通过',
+      optionalFields: Object.keys(data).filter(key => data[key] && !requiredFields.includes(key))
+    })
+    
+    // 步骤3: 发送网络请求
+    console.log('步骤3: 发送创建配送请求...', {
+      url: '/api/delivery',
+      method: 'POST',
+      data: data
+    })
+    
+    const requestStart = Date.now()
+    const response = await createDeliveryApi(data)
+    const requestTime = Date.now() - requestStart
+    
+    console.log('✓ 网络请求完成', {
+      requestTime: requestTime + 'ms',
+      responseSize: JSON.stringify(response).length + ' bytes',
+      statusCode: response.code
+    })
+    
+    // 步骤4: 响应处理
+    console.log('步骤4: 处理服务器响应...')
+    
+    if (response.code === 200) {
+      console.log('✓ 配送信息创建成功', {
+        deliveryId: response.data?.id,
+        totalTime: Date.now() - startTime + 'ms'
+      })
+      
+      Message.success('创建配送信息成功')
+      
+      // 步骤5: 界面更新
+      console.log('步骤5: 更新界面状态...')
+      createModalVisible.value = false
+      resetCreateForm()
+      
+      // 重新加载配送列表
+      console.log('步骤6: 重新加载配送列表...')
+      const reloadStart = Date.now()
+      await loadDeliveries()
+      console.log('✓ 配送列表重新加载完成', {
+        reloadTime: Date.now() - reloadStart + 'ms'
+      })
+      
+      console.log('=== 配送信息创建流程完成 ===', {
+        totalTime: Date.now() - startTime + 'ms',
+        success: true
+      })
+      
+    } else {
+      console.error('✗ 服务器返回错误', {
+        code: response.code,
+        message: response.message,
+        data: response.data,
+        totalTime: Date.now() - startTime + 'ms'
+      })
+      Message.error(response.message || '创建配送信息失败')
+    }
+    
   } catch (error) {
-    Message.error(error.message || '更新失败')
+    const errorTime = Date.now() - startTime
+    console.error('=== 创建配送信息流程异常 ===', {
+      errorTime: errorTime + 'ms',
+      errorType: error.constructor.name,
+      errorMessage: error.message
+    })
+    
+    if (error.response) {
+      // 服务器响应错误
+      console.error('服务器响应错误详情:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: error.response.headers,
+        data: error.response.data,
+        url: error.response.config?.url,
+        method: error.response.config?.method
+      })
+      
+      const errorMsg = error.response.data?.message || error.response.statusText || '创建配送信息失败'
+      Message.error(`服务器错误 (${error.response.status}): ${errorMsg}`)
+      
+    } else if (error.request) {
+      // 网络请求错误
+      console.error('网络请求错误详情:', {
+        timeout: error.code === 'ECONNABORTED',
+        networkError: !error.response,
+        requestConfig: {
+          url: error.config?.url,
+          method: error.config?.method,
+          timeout: error.config?.timeout
+        }
+      })
+      
+      if (error.code === 'ECONNABORTED') {
+        Message.error('请求超时，请检查网络连接后重试')
+      } else {
+        Message.error('网络连接失败，请检查网络状态')
+      }
+      
+    } else {
+      // 其他错误
+      console.error('其他错误详情:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      
+      Message.error(error.message || '创建配送信息时发生未知错误')
+    }
+    
+    console.log('=== 创建配送信息流程结束 ===', {
+      totalTime: errorTime + 'ms',
+      success: false
+    })
   }
 }
 
 // 重置编辑表单
 const resetEditForm = () => {
-  Object.keys(editForm).forEach(key => {
-    editForm[key] = ''
+  Object.assign(editForm, {
+    id: null,
+    orderId: null,
+    trackingNo: '',
+    shipper: '',
+    estimateTime: ''
   })
   editFormRef.value?.resetFields()
 }
 
-// 删除配送
-const deleteDelivery = (id) => {
-  Modal.confirm({
-    title: '确认删除',
-    content: '确定要删除该配送记录吗？删除后无法恢复。',
-    onOk: async () => {
-      try {
-        await deleteDeliveryApi(id)
-        Message.success('删除成功')
-        fetchDeliveries()
-        fetchStats()
-      } catch (error) {
-        Message.error(error.message || '删除失败')
-      }
-    }
-  })
-}
-
-// 批量删除
-const handleBatchDelete = () => {
-  Modal.confirm({
-    title: '确认批量删除',
-    content: `确定要删除选中的 ${selectedRowKeys.value.length} 个配送记录吗？`,
-    onOk: async () => {
-      try {
-        await batchDeleteDeliveriesApi(selectedRowKeys.value)
-        Message.success('批量删除成功')
-        selectedRowKeys.value = []
-        fetchDeliveries()
-        fetchStats()
-      } catch (error) {
-        Message.error(error.message || '批量删除失败')
-      }
-    }
-  })
-}
-
-// 批量更新状态
-const handleBatchUpdateStatus = () => {
-  batchStatus.value = null
-  batchStatusModalVisible.value = true
-}
-
-const confirmBatchUpdateStatus = async () => {
-  if (!batchStatus.value) {
-    Message.error('请选择状态')
-    return
-  }
-  
+// 编辑配送
+const handleUpdateDelivery = async () => {
   try {
-    await batchUpdateDeliveryStatusApi(selectedRowKeys.value, batchStatus.value)
-    Message.success('批量更新成功')
-    batchStatusModalVisible.value = false
-    selectedRowKeys.value = []
-    fetchDeliveries()
-    fetchStats()
+    const valid = await editFormRef.value?.validate()
+    if (!valid) return
+    
+    const data = {
+      trackingNo: editForm.trackingNo,
+      shipper: editForm.shipper,
+      estimateTime: editForm.estimateTime
+    }
+    
+    const response = await updateDeliveryApi(editForm.orderId, data)
+    if (response.code === 200) {
+      Message.success('更新配送信息成功')
+      editModalVisible.value = false
+      resetEditForm()
+      await loadDeliveries()
+    } else {
+      Message.error(response.message || '更新配送信息失败')
+    }
   } catch (error) {
-    Message.error(error.message || '批量更新失败')
+    Message.error('更新配送信息失败')
   }
 }
 
-// 更新配送状态
-const updateDeliveryStatus = async (delivery, status) => {
+// 重置发货表单
+const resetShipForm = () => {
+  Object.assign(shipForm, {
+    orderId: null,
+    trackingNo: '',
+    shipper: ''
+  })
+  shipFormRef.value?.resetFields()
+}
+
+// 发货
+const handleShip = async () => {
   try {
-    await updateDeliveryStatusApi(delivery.id, status)
-    Message.success('状态更新成功')
-    fetchDeliveries()
-    fetchStats()
+    const valid = await shipFormRef.value?.validate()
+    if (!valid) return
+    
+    const response = await shipDeliveryApi(shipForm.orderId, shipForm.trackingNo, shipForm.shipper)
+    if (response.code === 200) {
+      Message.success('发货成功')
+      shipModalVisible.value = false
+      resetShipForm()
+      await loadDeliveries()
+    } else {
+      Message.error(response.message || '发货失败')
+    }
   } catch (error) {
-    Message.error(error.message || '状态更新失败')
+    Message.error('发货失败')
   }
 }
 
-// 判断是否可以更新状态
-const canUpdateStatus = (currentStatus, targetStatus) => {
-  const statusFlow = {
-    1: [2, 5], // 待配送 -> 配送中、已取消
-    2: [3, 4, 5], // 配送中 -> 已送达、配送失败、已取消
-    3: [],     // 已送达
-    4: [2],    // 配送失败 -> 配送中
-    5: []      // 已取消
-  }
-  return statusFlow[currentStatus]?.includes(targetStatus) || false
+// 重置状态表单
+const resetStatusForm = () => {
+  Object.assign(statusForm, {
+    orderId: null,
+    status: ''
+  })
+  statusFormRef.value?.resetFields()
 }
 
-// 查看详情
+// 更新状态
+const handleUpdateStatus = async () => {
+  try {
+    const valid = await statusFormRef.value?.validate()
+    if (!valid) return
+    
+    const response = await updateDeliveryStatusApi(statusForm.orderId, statusForm.status)
+    if (response.code === 200) {
+      Message.success('更新配送状态成功')
+      statusModalVisible.value = false
+      resetStatusForm()
+      await loadDeliveries()
+    } else {
+      Message.error(response.message || '更新配送状态失败')
+    }
+  } catch (error) {
+    Message.error('更新配送状态失败')
+  }
+}
+
+// 显示详情
 const showDetail = async (delivery) => {
   try {
-    const { data } = await getDeliveryDetailApi(delivery.id)
-    currentDelivery.value = data
-    trackingInfo.value = []
-    detailVisible.value = true
+    const response = await getDeliveryDetailApi(delivery.id)
+    if (response.code === 200) {
+      currentDelivery.value = response.data
+      detailDrawerVisible.value = true
+    } else {
+      Message.error(response.message || '获取配送详情失败')
+    }
   } catch (error) {
-    Message.error('获取详情失败')
+    Message.error('获取配送详情失败')
   }
 }
 
-// 查看订单
-const viewOrder = (orderId) => {
-  // 这里可以跳转到订单详情页面或打开订单详情模态框
-  Message.info(`查看订单 ID: ${orderId}`)
+// 处理操作
+const handleAction = (action, delivery) => {
+  switch (action) {
+    case 'edit':
+      Object.assign(editForm, {
+        id: delivery.id,
+        orderId: delivery.orderId,
+        trackingNo: delivery.trackingNo || '',
+        shipper: delivery.shipper || '',
+        estimateTime: delivery.estimateTime || ''
+      })
+      editModalVisible.value = true
+      break
+    case 'ship':
+      Object.assign(shipForm, {
+        orderId: delivery.orderId,
+        trackingNo: '',
+        shipper: ''
+      })
+      shipModalVisible.value = true
+      break
+    case 'updateStatus':
+      Object.assign(statusForm, {
+        orderId: delivery.orderId,
+        status: ''
+      })
+      statusModalVisible.value = true
+      break
+    case 'track':
+      handleTrack(delivery)
+      break
+    case 'confirm':
+      handleConfirm(delivery)
+      break
+    case 'delete':
+      handleDelete(delivery)
+      break
+  }
 }
 
 // 物流跟踪
-const trackDelivery = async (delivery) => {
-  if (!delivery.deliveryNo) {
-    Message.error('配送单号为空，无法跟踪')
-    return
-  }
-  
+const handleTrack = async (delivery) => {
   try {
-    const { data } = await trackDeliveryApi(delivery.deliveryNo, delivery.deliveryCompany)
-    trackingInfo.value = data.tracks || []
-    Message.success('获取物流信息成功')
+    const response = await trackDeliveryApi(delivery.trackingNo, delivery.shipper)
+    if (response.code === 200) {
+      trackingInfo.value = response.data
+      trackModalVisible.value = true
+    } else {
+      Message.error(response.message || '获取物流信息失败')
+    }
   } catch (error) {
     Message.error('获取物流信息失败')
+  }
+}
+
+// 确认收货
+const handleConfirm = async (delivery) => {
+  try {
+    const response = await confirmDeliveryApi(delivery.orderId)
+    if (response.code === 200) {
+      Message.success('确认收货成功')
+      await loadDeliveries()
+    } else {
+      Message.error(response.message || '确认收货失败')
+    }
+  } catch (error) {
+    Message.error('确认收货失败')
+  }
+}
+
+// 删除配送
+const handleDelete = (delivery) => {
+  Modal.confirm({
+    title: '确认删除',
+    content: `确定要删除配送ID为 ${delivery.id} 的配送信息吗？`,
+    onOk: async () => {
+      try {
+        const response = await deleteDeliveryApi(delivery.id)
+        if (response.code === 200) {
+          Message.success('删除成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '删除失败')
+        }
+      } catch (error) {
+        Message.error('删除失败')
+      }
+    }
+  })
+}
+
+// 显示统计模态框
+const showStatsModal = async () => {
+  try {
+    const response = await getDeliveryStatsApi()
+    if (response.code === 200) {
+      deliveryStats.value = response.data
+      statsModalVisible.value = true
+    } else {
+      Message.error(response.message || '获取配送统计失败')
+    }
+  } catch (error) {
+    Message.error('获取配送统计失败')
   }
 }
 
 // 导出数据
 const handleExport = async () => {
   try {
-    const params = { ...searchForm }
-    if (searchForm.timeRange && searchForm.timeRange.length === 2) {
-      params.startTime = dayjs(searchForm.timeRange[0]).format('YYYY-MM-DD HH:mm:ss')
-      params.endTime = dayjs(searchForm.timeRange[1]).format('YYYY-MM-DD HH:mm:ss')
-    }
-    delete params.timeRange
-    
-    const response = await exportDeliveriesApi(params)
-    
-    // 创建下载链接
-    const blob = new Blob([response.data], { 
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
-    })
+    const response = await exportDeliveriesApi(searchForm)
+    // 处理文件下载
+    const blob = new Blob([response], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `配送数据_${dayjs().format('YYYY-MM-DD')}.xlsx`
+    link.download = `配送数据_${new Date().toISOString().slice(0, 10)}.xlsx`
     link.click()
     window.URL.revokeObjectURL(url)
-    
     Message.success('导出成功')
   } catch (error) {
     Message.error('导出失败')
   }
 }
 
-// 工具函数
-const getStatusColor = (status) => {
-  const colors = {
-    1: 'orange',   // 待配送
-    2: 'blue',     // 配送中
-    3: 'green',    // 已送达
-    4: 'red',      // 配送失败
-    5: 'gray'      // 已取消
-  }
-  return colors[status] || 'gray'
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    1: '待配送',
-    2: '配送中',
-    3: '已送达',
-    4: '配送失败',
-    5: '已取消'
-  }
-  return texts[status] || '未知'
-}
-
+// 格式化日期时间
 const formatDateTime = (dateTime) => {
-  return dayjs(dateTime).format('YYYY-MM-DD HH:mm:ss')
+  if (!dateTime) return '-'
+  return new Date(dateTime).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
 }
+
+// 组件挂载时加载数据
+onMounted(() => {
+  loadDeliveries()
+})
 </script>
 
 <style scoped>
@@ -985,99 +1262,86 @@ const formatDateTime = (dateTime) => {
   padding: 20px;
 }
 
+.page-header {
+  margin-bottom: 20px;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1d2129;
+}
+
 .search-card {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.search-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .action-bar {
-  margin-bottom: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 20px;
 }
 
 .action-bar > div {
   display: flex;
-  gap: 8px;
+  gap: 12px;
 }
 
-.delivery-name {
-  font-weight: 500;
-  margin-bottom: 4px;
+.amount-text {
+  font-weight: 600;
+  color: #f53f3f;
 }
 
-.delivery-phone {
-  font-size: 12px;
+.text-gray {
   color: #86909c;
 }
 
-.address-text {
-  display: inline-block;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.status-tag {
-  font-weight: 500;
+.danger {
+  color: #f53f3f;
 }
 
 .delivery-detail {
   padding: 16px 0;
 }
 
+.stats-content {
+  padding: 20px 0;
+}
+
+.tracking-info {
+  padding: 16px 0;
+}
+
 .tracking-item {
-  padding: 8px 0;
+  margin-bottom: 8px;
 }
 
 .tracking-time {
-  font-weight: 500;
-  color: #1890ff;
+  font-weight: 600;
+  color: #1d2129;
   margin-bottom: 4px;
 }
 
 .tracking-desc {
+  color: #4e5969;
   margin-bottom: 2px;
 }
 
 .tracking-location {
-  font-size: 12px;
   color: #86909c;
+  font-size: 12px;
 }
 
-.empty-tracking {
-  text-align: center;
+.no-tracking {
   padding: 40px 0;
-}
-
-.batch-tip {
-  color: #86909c;
-  font-size: 12px;
-  margin-top: 8px;
-}
-
-.stat-card {
   text-align: center;
-}
-
-.danger {
-  color: #f53f3f !important;
-}
-
-@media (max-width: 768px) {
-  .action-bar {
-    flex-direction: column;
-    gap: 16px;
-    align-items: stretch;
-  }
-  
-  .search-form .arco-form {
-    flex-direction: column;
-  }
-  
-  .search-form .arco-form-item {
-    width: 100% !important;
-  }
 }
 </style>

@@ -9,7 +9,7 @@ import request from './request'
  */
 export const getDeliveriesApi = (params = {}) => {
   return request({
-    url: '/api/deliveries',
+    url: '/api/delivery',
     method: 'get',
     params
   })
@@ -31,7 +31,7 @@ export const getDeliveriesApi = (params = {}) => {
  */
 export const searchDeliveriesApi = (params) => {
   return request({
-    url: '/api/deliveries/search',
+    url: '/api/delivery',
     method: 'get',
     params
   })
@@ -44,7 +44,7 @@ export const searchDeliveriesApi = (params) => {
  */
 export const getDeliveryDetailApi = (id) => {
   return request({
-    url: `/api/deliveries/${id}`,
+    url: `/api/delivery/${id}`,
     method: 'get'
   })
 }
@@ -52,19 +52,11 @@ export const getDeliveryDetailApi = (id) => {
 /**
  * 创建配送记录
  * @param {Object} data - 配送数据
- * @param {number} data.orderId - 订单ID
- * @param {string} data.deliveryNo - 配送单号
- * @param {string} data.deliveryCompany - 配送公司
- * @param {string} data.deliveryName - 收货人姓名
- * @param {string} data.deliveryPhone - 收货人电话
- * @param {string} data.deliveryAddress - 收货地址
- * @param {string} data.deliveryPostcode - 邮政编码
- * @param {string} data.remark - 备注
  * @returns {Promise}
  */
 export const createDeliveryApi = (data) => {
   return request({
-    url: '/api/deliveries',
+    url: `/api/delivery`,
     method: 'post',
     data
   })
@@ -72,13 +64,13 @@ export const createDeliveryApi = (data) => {
 
 /**
  * 更新配送记录
- * @param {number} id - 配送ID
+ * @param {number} orderId - 订单ID
  * @param {Object} data - 更新数据
  * @returns {Promise}
  */
-export const updateDeliveryApi = (id, data) => {
+export const updateDeliveryApi = (orderId, data) => {
   return request({
-    url: `/api/deliveries/${id}`,
+    url: `/api/delivery/order/${orderId}`,
     method: 'put',
     data
   })
@@ -91,22 +83,61 @@ export const updateDeliveryApi = (id, data) => {
  */
 export const deleteDeliveryApi = (id) => {
   return request({
-    url: `/api/deliveries/${id}`,
+    url: `/api/delivery/${id}`,
     method: 'delete'
   })
 }
 
 /**
  * 更新配送状态
- * @param {number} id - 配送ID
- * @param {number} status - 新状态
+ * @param {number} orderId - 订单ID
+ * @param {string} status - 新状态
  * @returns {Promise}
  */
-export const updateDeliveryStatusApi = (id, status) => {
+export const updateDeliveryStatusApi = (orderId, status) => {
   return request({
-    url: `/api/deliveries/${id}/status`,
+    url: `/api/delivery/order/${orderId}/status`,
     method: 'put',
-    data: { status }
+    params: { status }
+  })
+}
+
+/**
+ * 发货
+ * @param {number} orderId - 订单ID
+ * @param {string} trackingNo - 物流单号
+ * @param {string} shipper - 物流公司
+ * @returns {Promise}
+ */
+export const shipDeliveryApi = (orderId, trackingNo, shipper) => {
+  return request({
+    url: `/api/delivery/order/${orderId}/ship`,
+    method: 'post',
+    params: { trackingNo, shipper }
+  })
+}
+
+/**
+ * 确认收货
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export const confirmDeliveryApi = (orderId) => {
+  return request({
+    url: `/api/delivery/order/${orderId}/confirm`,
+    method: 'post'
+  })
+}
+
+/**
+ * 根据订单ID查询配送信息
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export const getDeliveryByOrderIdApi = (orderId) => {
+  return request({
+    url: `/api/delivery/order/${orderId}`,
+    method: 'get'
   })
 }
 
@@ -117,7 +148,7 @@ export const updateDeliveryStatusApi = (id, status) => {
  */
 export const batchDeleteDeliveriesApi = (ids) => {
   return request({
-    url: '/api/deliveries/batch',
+    url: '/api/delivery/batch',
     method: 'delete',
     data: { ids }
   })
@@ -131,7 +162,7 @@ export const batchDeleteDeliveriesApi = (ids) => {
  */
 export const batchUpdateDeliveryStatusApi = (ids, status) => {
   return request({
-    url: '/api/deliveries/batch/status',
+    url: '/api/delivery/batch/status',
     method: 'put',
     data: { ids, status }
   })
@@ -143,7 +174,7 @@ export const batchUpdateDeliveryStatusApi = (ids, status) => {
  */
 export const getDeliveryStatsApi = () => {
   return request({
-    url: '/api/deliveries/stats',
+    url: '/api/delivery/stats',
     method: 'get'
   })
 }
@@ -154,7 +185,7 @@ export const getDeliveryStatsApi = () => {
  */
 export const getDeliveryCompaniesApi = () => {
   return request({
-    url: '/api/deliveries/companies',
+    url: '/api/delivery/companies',
     method: 'get'
   })
 }
@@ -167,7 +198,7 @@ export const getDeliveryCompaniesApi = () => {
  */
 export const trackDeliveryApi = (deliveryNo, company) => {
   return request({
-    url: '/api/deliveries/track',
+    url: '/api/delivery/track',
     method: 'get',
     params: { deliveryNo, company }
   })
@@ -180,7 +211,7 @@ export const trackDeliveryApi = (deliveryNo, company) => {
  */
 export const exportDeliveriesApi = (params = {}) => {
   return request({
-    url: '/api/deliveries/export',
+    url: '/api/delivery/export',
     method: 'get',
     params,
     responseType: 'blob'
