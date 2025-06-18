@@ -145,7 +145,7 @@
                       确认收货
                     </a-doption>
                     <a-doption 
-                      v-if="['PENDING_PAYMENT', 'PAID'].includes(record.orderStatus)" 
+                      v-if="['CREATED', 'PAID', 'SHIPPING','DELIVERED'].includes(record.orderStatus)" 
                       value="cancel"
                     >
                       取消订单
