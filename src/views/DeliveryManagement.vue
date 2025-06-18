@@ -546,14 +546,9 @@ const loadDeliveries = async () => {
       }
     })
     
-    console.log('发送配送列表请求，参数:', params)
     const response = await getDeliveriesApi(params)
-    console.log('配送列表响应:', response)
     
-    if (response.code === 200) {
-      // 检查数据结构
-      console.log('响应数据结构:', response.data)
-      
+    if (response.code === 200) {      
       // 根据后端实际返回的数据结构调整
       if (response.data && response.data.data && response.data.data.list) {
         // 如果是嵌套的PageInfo结构
@@ -571,16 +566,12 @@ const loadDeliveries = async () => {
         // 其他情况
         deliveries.value = []
         pagination.total = 0
-        console.warn('未知的数据结构:', response.data)
       }
       
-      console.log('设置的配送列表:', deliveries.value)
-      console.log('设置的总数:', pagination.total)
     } else {
       Message.error(response.message || '获取配送列表失败')
     }
   } catch (error) {
-    console.error('获取配送列表失败:', error)
     Message.error('获取配送列表失败')
   } finally {
     loading.value = false
@@ -673,7 +664,6 @@ const handleCreateDelivery = async () => {
       Message.error(response.message || '创建配送信息失败')
     }
   } catch (error) {
-    console.error('创建配送信息失败:', error)
     Message.error('创建配送信息失败')
   }
 }
@@ -712,7 +702,6 @@ const handleUpdateDelivery = async () => {
       Message.error(response.message || '更新配送信息失败')
     }
   } catch (error) {
-    console.error('更新配送信息失败:', error)
     Message.error('更新配送信息失败')
   }
 }
@@ -743,7 +732,6 @@ const handleShip = async () => {
       Message.error(response.message || '发货失败')
     }
   } catch (error) {
-    console.error('发货失败:', error)
     Message.error('发货失败')
   }
 }
@@ -773,7 +761,6 @@ const handleUpdateStatus = async () => {
       Message.error(response.message || '更新配送状态失败')
     }
   } catch (error) {
-    console.error('更新配送状态失败:', error)
     Message.error('更新配送状态失败')
   }
 }
@@ -789,7 +776,6 @@ const showDetail = async (delivery) => {
       Message.error(response.message || '获取配送详情失败')
     }
   } catch (error) {
-    console.error('获取配送详情失败:', error)
     Message.error('获取配送详情失败')
   }
 }
@@ -845,7 +831,6 @@ const handleTrack = async (delivery) => {
       Message.error(response.message || '获取物流信息失败')
     }
   } catch (error) {
-    console.error('获取物流信息失败:', error)
     Message.error('获取物流信息失败')
   }
 }
@@ -861,7 +846,6 @@ const handleConfirm = async (delivery) => {
       Message.error(response.message || '确认收货失败')
     }
   } catch (error) {
-    console.error('确认收货失败:', error)
     Message.error('确认收货失败')
   }
 }
@@ -881,7 +865,6 @@ const handleDelete = (delivery) => {
           Message.error(response.message || '删除失败')
         }
       } catch (error) {
-        console.error('删除失败:', error)
         Message.error('删除失败')
       }
     }
@@ -899,7 +882,6 @@ const showStatsModal = async () => {
       Message.error(response.message || '获取配送统计失败')
     }
   } catch (error) {
-    console.error('获取配送统计失败:', error)
     Message.error('获取配送统计失败')
   }
 }
@@ -918,7 +900,6 @@ const handleExport = async () => {
     window.URL.revokeObjectURL(url)
     Message.success('导出成功')
   } catch (error) {
-    console.error('导出失败:', error)
     Message.error('导出失败')
   }
 }
