@@ -183,7 +183,7 @@
     <a-modal 
       v-model:visible="createModalVisible" 
       title="创建配送信息" 
-      width="600px"
+      width="800px"
       @ok="handleCreateDelivery"
       @cancel="resetCreateForm"
     >
@@ -193,9 +193,92 @@
         :rules="createRules" 
         layout="vertical"
       >
-        <a-form-item label="订单ID" field="orderId">
-          <a-input-number v-model="createForm.orderId" placeholder="输入订单ID" :min="1" />
-        </a-form-item>
+        <a-row :gutter="16">
+          <a-col :span="24">
+            <a-form-item label="选择订单" field="orderId">
+              <a-select 
+                v-model="createForm.orderId" 
+                placeholder="请选择订单"
+                @change="handleOrderSelect"
+                allow-search
+              >
+                <a-option 
+                  v-for="order in orderOptions" 
+                  :key="order.id" 
+                  :value="order.id"
+                >
+                  订单#{{ order.id }} - {{ order.customerName }} - ¥{{ order.totalAmount }}
+                </a-option>
+              </a-select>
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="收货人姓名" field="consigneeName">
+              <a-input v-model="createForm.consigneeName" placeholder="请输入收货人姓名" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="收货人电话" field="consigneePhone">
+              <a-input v-model="createForm.consigneePhone" placeholder="请输入收货人电话" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="24">
+            <a-form-item label="配送地址" field="deliveryAddress">
+              <a-textarea 
+                v-model="createForm.deliveryAddress" 
+                placeholder="请输入配送地址"
+                :rows="2"
+              />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="物流单号" field="trackingNo">
+              <a-input v-model="createForm.trackingNo" placeholder="请输入物流单号（可选）" />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="物流公司" field="shipper">
+              <a-input v-model="createForm.shipper" placeholder="请输入物流公司（可选）" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <a-row :gutter="16">
+          <a-col :span="12">
+            <a-form-item label="预计送达时间" field="estimateTime">
+              <a-date-picker 
+                v-model="createForm.estimateTime" 
+                placeholder="请选择预计送达时间（可选）"
+                style="width: 100%"
+                show-time
+              />
+            </a-form-item>
+          </a-col>
+          <a-col :span="12">
+            <a-form-item label="备注" field="remark">
+              <a-input v-model="createForm.remark" placeholder="请输入备注（可选）" />
+            </a-form-item>
+          </a-col>
+        </a-row>
+        
+        <!-- 订单信息预览 -->
+        <a-divider v-if="selectedOrder" orientation="left">订单信息预览</a-divider>
+        <a-descriptions v-if="selectedOrder" :column="2" bordered>
+          <a-descriptions-item label="订单编号">{{ selectedOrder.id }}</a-descriptions-item>
+          <a-descriptions-item label="客户姓名">{{ selectedOrder.customerName }}</a-descriptions-item>
+          <a-descriptions-item label="订单金额">¥{{ selectedOrder.totalAmount }}</a-descriptions-item>
+          <a-descriptions-item label="订单状态">{{ selectedOrder.status }}</a-descriptions-item>
+          <a-descriptions-item label="创建时间" :span="2">{{ selectedOrder.createTime }}</a-descriptions-item>
+        </a-descriptions>
       </a-form>
     </a-modal>
 
@@ -405,6 +488,7 @@ import {
   trackDeliveryApi,
   exportDeliveriesApi
 } from '@/api/delivery'
+import { getSimpleOrdersApi } from '@/api/order'
 
 // 配送状态映射
 const DELIVERY_STATUS_TEXT = {
@@ -455,15 +539,35 @@ const pagination = reactive({
 const createModalVisible = ref(false)
 const createFormRef = ref()
 const createForm = reactive({
-  orderId: null
+  orderId: null,
+  trackingNo: '',
+  shipper: '',
+  consigneeName: '',
+  consigneePhone: '',
+  deliveryAddress: '',
+  estimateTime: '',
+  remark: ''
 })
 
 const createRules = {
   orderId: [
-    { required: true, message: '请输入订单ID' },
-    { type: 'number', min: 1, message: '订单ID必须大于0' }
+    { required: true, message: '请选择订单' }
+  ],
+  consigneeName: [
+    { required: true, message: '请输入收货人姓名' }
+  ],
+  consigneePhone: [
+    { required: true, message: '请输入收货人电话' },
+    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码' }
+  ],
+  deliveryAddress: [
+    { required: true, message: '请输入配送地址' }
   ]
 }
+
+// 订单列表
+const orderOptions = ref([])
+const selectedOrder = ref(null)
 
 // 编辑配送模态框
 const editModalVisible = ref(false)
@@ -635,36 +739,266 @@ const handlePageSizeChange = (pageSize) => {
   loadDeliveries()
 }
 
+// 加载订单列表
+const loadOrderOptions = async () => {
+  try {
+    const response = await getSimpleOrdersApi()
+    if (response.code === 200) {
+      orderOptions.value = response.data || []
+    } else {
+      Message.error('获取订单列表失败')
+    }
+  } catch (error) {
+    Message.error('获取订单列表失败')
+  }
+}
+
+// 处理订单选择
+const handleOrderSelect = (orderId) => {
+  const order = orderOptions.value.find(o => o.id === orderId)
+  if (order) {
+    selectedOrder.value = order
+    // 自动填充订单相关信息
+    createForm.consigneeName = order.customerName || ''
+    createForm.consigneePhone = order.customerPhone || ''
+    createForm.deliveryAddress = order.deliveryAddress || ''
+  }
+}
+
 // 显示创建模态框
-const showCreateModal = () => {
+const showCreateModal = async () => {
+  await loadOrderOptions()
   createModalVisible.value = true
 }
 
 // 重置创建表单
 const resetCreateForm = () => {
   Object.assign(createForm, {
-    orderId: null
+    orderId: null,
+    trackingNo: '',
+    shipper: '',
+    consigneeName: '',
+    consigneePhone: '',
+    deliveryAddress: '',
+    estimateTime: '',
+    remark: ''
   })
+  selectedOrder.value = null
   createFormRef.value?.resetFields()
 }
 
 // 创建配送
 const handleCreateDelivery = async () => {
+  const startTime = Date.now()
+  console.log('=== 开始创建配送信息流程 ===', {
+    timestamp: new Date().toISOString(),
+    formData: JSON.parse(JSON.stringify(createForm))
+  })
+  
   try {
-    const valid = await createFormRef.value?.validate()
-    if (!valid) return
+    // 步骤1: 表单验证
+    console.log('步骤1: 开始表单验证...', {
+      currentFormData: JSON.parse(JSON.stringify(createForm)),
+      requiredFields: ['orderId', 'consigneeName', 'consigneePhone', 'deliveryAddress']
+    })
+    const validationStart = Date.now()
     
-    const response = await createDeliveryApi(createForm.orderId)
+    try {
+      // Arco Design的validate方法在验证失败时会reject，成功时resolve undefined
+      await createFormRef.value?.validate()
+      
+      console.log('✓ 表单验证通过', {
+        validationTime: Date.now() - validationStart + 'ms',
+        formData: {
+          orderId: createForm.orderId,
+          consigneeName: createForm.consigneeName,
+          consigneePhone: createForm.consigneePhone,
+          deliveryAddress: createForm.deliveryAddress
+        }
+      })
+    } catch (validationError) {
+      // 检查具体哪些字段验证失败
+      const emptyRequiredFields = []
+      const invalidFields = []
+      
+      if (!createForm.orderId) emptyRequiredFields.push('订单')
+      if (!createForm.consigneeName) emptyRequiredFields.push('收货人姓名')
+      if (!createForm.consigneePhone) {
+        emptyRequiredFields.push('收货人电话')
+      } else if (!/^1[3-9]\d{9}$/.test(createForm.consigneePhone)) {
+        invalidFields.push('收货人电话格式不正确')
+      }
+      if (!createForm.deliveryAddress) emptyRequiredFields.push('配送地址')
+      
+      console.warn('✗ 表单验证失败，停止创建流程', {
+        validationTime: Date.now() - validationStart + 'ms',
+        validationError: validationError,
+        emptyRequiredFields: emptyRequiredFields,
+        invalidFields: invalidFields,
+        formData: {
+          orderId: createForm.orderId || '未选择',
+          consigneeName: createForm.consigneeName || '未填写',
+          consigneePhone: createForm.consigneePhone || '未填写',
+          deliveryAddress: createForm.deliveryAddress || '未填写'
+        }
+      })
+      
+      // 给用户更明确的提示
+      if (emptyRequiredFields.length > 0) {
+        Message.error(`请填写必填字段: ${emptyRequiredFields.join('、')}`)
+      } else if (invalidFields.length > 0) {
+        Message.error(`字段格式错误: ${invalidFields.join('、')}`)
+      } else {
+        Message.error('表单验证失败，请检查输入内容')
+      }
+      
+      return
+    }
+    
+    console.log('✓ 表单验证通过', {
+      validationTime: Date.now() - validationStart + 'ms'
+    })
+    
+    // 步骤2: 数据准备和验证
+    console.log('步骤2: 准备请求数据...')
+    const data = {
+      orderId: createForm.orderId,
+      trackingNo: createForm.trackingNo,
+      shipper: createForm.shipper,
+      consigneeName: createForm.consigneeName,
+      consigneePhone: createForm.consigneePhone,
+      deliveryAddress: createForm.deliveryAddress,
+      estimateTime: createForm.estimateTime,
+      remark: createForm.remark
+    }
+    
+    // 数据完整性检查
+    const requiredFields = ['orderId', 'consigneeName', 'consigneePhone', 'deliveryAddress']
+    const missingFields = requiredFields.filter(field => !data[field])
+    
+    if (missingFields.length > 0) {
+      console.error('必填字段缺失:', missingFields)
+      Message.error(`请填写必填字段: ${missingFields.join(', ')}`)
+      return
+    }
+    
+    console.log('✓ 数据准备完成', {
+      dataSize: JSON.stringify(data).length + ' bytes',
+      requiredFieldsCheck: '通过',
+      optionalFields: Object.keys(data).filter(key => data[key] && !requiredFields.includes(key))
+    })
+    
+    // 步骤3: 发送网络请求
+    console.log('步骤3: 发送创建配送请求...', {
+      url: '/api/delivery',
+      method: 'POST',
+      data: data
+    })
+    
+    const requestStart = Date.now()
+    const response = await createDeliveryApi(data)
+    const requestTime = Date.now() - requestStart
+    
+    console.log('✓ 网络请求完成', {
+      requestTime: requestTime + 'ms',
+      responseSize: JSON.stringify(response).length + ' bytes',
+      statusCode: response.code
+    })
+    
+    // 步骤4: 响应处理
+    console.log('步骤4: 处理服务器响应...')
+    
     if (response.code === 200) {
+      console.log('✓ 配送信息创建成功', {
+        deliveryId: response.data?.id,
+        totalTime: Date.now() - startTime + 'ms'
+      })
+      
       Message.success('创建配送信息成功')
+      
+      // 步骤5: 界面更新
+      console.log('步骤5: 更新界面状态...')
       createModalVisible.value = false
       resetCreateForm()
+      
+      // 重新加载配送列表
+      console.log('步骤6: 重新加载配送列表...')
+      const reloadStart = Date.now()
       await loadDeliveries()
+      console.log('✓ 配送列表重新加载完成', {
+        reloadTime: Date.now() - reloadStart + 'ms'
+      })
+      
+      console.log('=== 配送信息创建流程完成 ===', {
+        totalTime: Date.now() - startTime + 'ms',
+        success: true
+      })
+      
     } else {
+      console.error('✗ 服务器返回错误', {
+        code: response.code,
+        message: response.message,
+        data: response.data,
+        totalTime: Date.now() - startTime + 'ms'
+      })
       Message.error(response.message || '创建配送信息失败')
     }
+    
   } catch (error) {
-    Message.error('创建配送信息失败')
+    const errorTime = Date.now() - startTime
+    console.error('=== 创建配送信息流程异常 ===', {
+      errorTime: errorTime + 'ms',
+      errorType: error.constructor.name,
+      errorMessage: error.message
+    })
+    
+    if (error.response) {
+      // 服务器响应错误
+      console.error('服务器响应错误详情:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        headers: error.response.headers,
+        data: error.response.data,
+        url: error.response.config?.url,
+        method: error.response.config?.method
+      })
+      
+      const errorMsg = error.response.data?.message || error.response.statusText || '创建配送信息失败'
+      Message.error(`服务器错误 (${error.response.status}): ${errorMsg}`)
+      
+    } else if (error.request) {
+      // 网络请求错误
+      console.error('网络请求错误详情:', {
+        timeout: error.code === 'ECONNABORTED',
+        networkError: !error.response,
+        requestConfig: {
+          url: error.config?.url,
+          method: error.config?.method,
+          timeout: error.config?.timeout
+        }
+      })
+      
+      if (error.code === 'ECONNABORTED') {
+        Message.error('请求超时，请检查网络连接后重试')
+      } else {
+        Message.error('网络连接失败，请检查网络状态')
+      }
+      
+    } else {
+      // 其他错误
+      console.error('其他错误详情:', {
+        message: error.message,
+        stack: error.stack,
+        name: error.name
+      })
+      
+      Message.error(error.message || '创建配送信息时发生未知错误')
+    }
+    
+    console.log('=== 创建配送信息流程结束 ===', {
+      totalTime: errorTime + 'ms',
+      success: false
+    })
   }
 }
 

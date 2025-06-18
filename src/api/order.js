@@ -138,6 +138,14 @@ export const getSimpleProductsApi = () => {
 }
 
 /**
+ * 获取简化订单列表
+ * @returns {Promise}
+ */
+export const getSimpleOrdersApi = () => {
+  return request.get('/orders/simple')
+}
+
+/**
  * 导出订单数据
  * @param {Object} params - 导出参数
  * @returns {Promise}

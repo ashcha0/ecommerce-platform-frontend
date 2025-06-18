@@ -51,13 +51,14 @@ export const getDeliveryDetailApi = (id) => {
 
 /**
  * 创建配送记录
- * @param {number} orderId - 订单ID
+ * @param {Object} data - 配送数据
  * @returns {Promise}
  */
-export const createDeliveryApi = (orderId) => {
+export const createDeliveryApi = (data) => {
   return request({
-    url: `/api/delivery/order/${orderId}`,
-    method: 'post'
+    url: `/api/delivery`,
+    method: 'post',
+    data
   })
 }
 
