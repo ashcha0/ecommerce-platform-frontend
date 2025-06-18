@@ -143,19 +143,85 @@
     <a-modal 
       v-model:visible="createModalVisible" 
       title="新建库存记录"
-      width="500px"
+      width="600px"
       @ok="handleCreate"
       @cancel="resetCreateForm"
     >
       <a-form :model="createForm" :rules="createFormRules" layout="vertical" ref="createFormRef">
-        <a-form-item label="商品ID" field="productId" required>
-          <a-input-number v-model="createForm.productId" placeholder="请输入商品ID" :min="1" />
+        <a-form-item label="选择商品" field="productId" required>
+          <a-select 
+            v-model="createForm.productId" 
+            placeholder="请选择商品"
+            :loading="productListLoading"
+            @change="handleProductSelect"
+            allow-search
+            :filter-option="false"
+            @search="handleProductSearch"
+            :show-extra-options="false"
+          >
+            <a-option 
+              v-for="product in productList" 
+              :key="product.id" 
+              :value="product.id"
+            >
+              <div class="product-option">
+                <div class="option-content">
+                  <span class="product-name">{{ product.name }}</span>
+                  <a-tag class="product-id" color="blue" size="small">ID: {{ product.id }}</a-tag>
+                </div>
+                <div class="option-meta">
+                  <span class="price-text">价格: ¥{{ product.price }}</span>
+                  <span class="status-text">
+                    状态: 
+                    <span :class="product.status === 1 ? 'status-active' : 'status-inactive'">
+                      {{ product.status === 1 ? '上架' : '下架' }}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </a-option>
+            <template #empty>
+              <div style="text-align: center; padding: 20px; color: #86909c;">
+                <icon-empty style="font-size: 24px; margin-bottom: 8px;" />
+                <div>暂无商品数据</div>
+                <div style="font-size: 12px; margin-top: 4px;">请检查商品是否已创建</div>
+              </div>
+            </template>
+          </a-select>
         </a-form-item>
+        
+        <!-- 商品信息回显 -->
+        <div v-if="selectedProduct" class="product-info" style="margin-bottom: 16px; padding: 16px; background: linear-gradient(135deg, #f7f8fa 0%, #e8f4fd 100%); border-radius: 8px; border: 1px solid #e5e6eb;">
+          <div style="display: flex; align-items: center; margin-bottom: 12px;">
+            <icon-info-circle style="color: #165dff; margin-right: 8px; font-size: 16px;" />
+            <h4 style="margin: 0; color: #1d2129; font-weight: 600;">已选商品信息</h4>
+          </div>
+          <a-descriptions :column="2" size="small" bordered>
+            <a-descriptions-item label="商品名称">
+              <span style="font-weight: 500; color: #1d2129;">{{ selectedProduct.name }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="商品ID">
+              <a-tag color="blue">{{ selectedProduct.id }}</a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="价格">
+              <span style="color: #f53f3f; font-weight: 600;">¥{{ selectedProduct.price }}</span>
+            </a-descriptions-item>
+            <a-descriptions-item label="状态">
+              <a-tag :color="selectedProduct.status === 1 ? 'green' : 'red'">
+                {{ selectedProduct.status === 1 ? '上架' : '下架' }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="描述" :span="2">
+              <span style="color: #86909c;">{{ selectedProduct.description || '暂无描述' }}</span>
+            </a-descriptions-item>
+          </a-descriptions>
+        </div>
+        
         <a-form-item label="初始库存" field="initialStock" required>
-          <a-input-number v-model="createForm.initialStock" placeholder="请输入初始库存" :min="0" />
+          <a-input-number v-model="createForm.initialStock" placeholder="请输入初始库存" :min="0" style="width: 100%;" />
         </a-form-item>
         <a-form-item label="低库存阈值" field="lowStockThreshold">
-          <a-input-number v-model="createForm.lowStockThreshold" placeholder="请输入低库存阈值" :min="0" />
+          <a-input-number v-model="createForm.lowStockThreshold" placeholder="请输入低库存阈值" :min="0" style="width: 100%;" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -374,6 +440,7 @@ import {
   getLowStockInventoryApi,
   checkInventoryExistsApi
 } from '@/api/inventory'
+import { getSimpleProductsApi } from '@/api/order'
 import { Message, Modal } from '@arco-design/web-vue'
 import dayjs from 'dayjs'
 
@@ -417,6 +484,11 @@ const lowStockModalVisible = ref(false)
 
 // 当前操作的库存记录
 const currentInventory = ref(null)
+
+// 商品列表相关
+const productList = ref([])
+const productListLoading = ref(false)
+const selectedProduct = ref(null)
 
 // 表单引用
 const createFormRef = ref()
@@ -469,8 +541,7 @@ const lowStockPagination = reactive({
 // 表单验证规则
 const createFormRules = {
   productId: [
-    { required: true, message: '请输入商品ID' },
-    { type: 'number', min: 1, message: '商品ID必须大于0' }
+    { required: true, message: '请选择商品' }
   ],
   initialStock: [
     { required: true, message: '请输入初始库存' },
@@ -575,9 +646,77 @@ const handlePageSizeChange = (pageSize) => {
   handleSearch()
 }
 
+// 获取商品列表
+const fetchProductList = async (searchKeyword = '') => {
+  try {
+    console.log('[InventoryManagement] 开始获取商品列表, 搜索关键词:', searchKeyword)
+    productListLoading.value = true
+    
+    // 使用正确的API调用方式
+    const response = await getSimpleProductsApi()
+    console.log('[InventoryManagement] 商品列表API响应:', response)
+    
+    if (response.code === 200) {
+      let products = response.data || []
+      console.log('[InventoryManagement] 获取到商品数据:', products)
+      
+      // 如果有搜索关键词，进行过滤
+      if (searchKeyword) {
+        products = products.filter(product => 
+          product.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
+          product.id.toString().includes(searchKeyword)
+        )
+        console.log('[InventoryManagement] 过滤后的商品数据:', products)
+      }
+      
+      productList.value = products
+      console.log('[InventoryManagement] 商品列表更新完成, 共', products.length, '个商品')
+    } else {
+      console.error('[InventoryManagement] 获取商品列表失败:', response.message)
+      Message.error(response.message || '获取商品列表失败')
+      productList.value = []
+    }
+  } catch (error) {
+    console.error('[InventoryManagement] 获取商品列表异常:', error)
+    Message.error('获取商品列表失败')
+    productList.value = []
+  } finally {
+    productListLoading.value = false
+    console.log('[InventoryManagement] 商品列表加载完成')
+  }
+}
+
+// 处理商品搜索
+const handleProductSearch = (searchKeyword) => {
+  console.log('[InventoryManagement] 商品搜索触发, 关键词:', searchKeyword)
+  fetchProductList(searchKeyword)
+}
+
+// 处理商品选择
+const handleProductSelect = (productId) => {
+  console.log('[InventoryManagement] 商品选择触发, 商品ID:', productId)
+  const product = productList.value.find(p => p.id === productId)
+  console.log('[InventoryManagement] 选中的商品信息:', product)
+  selectedProduct.value = product
+  
+  if (product) {
+    console.log('[InventoryManagement] 商品选择成功:', {
+      id: product.id,
+      name: product.name,
+      price: product.price,
+      status: product.status
+    })
+  } else {
+    console.warn('[InventoryManagement] 未找到对应的商品信息, 商品ID:', productId)
+  }
+}
+
 // 显示创建模态框
-const showCreateModal = () => {
+const showCreateModal = async () => {
+  console.log('[InventoryManagement] 显示创建库存模态框')
   createModalVisible.value = true
+  // 打开模态框时获取商品列表
+  await fetchProductList()
 }
 
 // 创建库存
@@ -609,6 +748,8 @@ const resetCreateForm = () => {
       createForm[key] = null
     }
   })
+  selectedProduct.value = null
+  productList.value = []
   createFormRef.value?.resetFields()
 }
 
@@ -911,5 +1052,44 @@ const getStockColor = (record) => {
 
 .search-form .arco-form-item {
   margin-bottom: 0;
+}
+
+.product-option {
+  padding: 0px 0;
+}
+
+.option-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.product-name {
+  font-weight: 500;
+  color: #1d2129;
+  margin-right: 8px;
+}
+
+.product-id {
+  flex-shrink: 0;
+}
+
+.option-meta {
+  display: flex;
+  font-size: 12px;
+  color: #86909c;
+}
+
+.price-text {
+  margin-right: 16px;
+}
+
+.status-active {
+  color: #00b42a;
+}
+
+.status-inactive {
+  color: #f53f3f;
 }
 </style>
