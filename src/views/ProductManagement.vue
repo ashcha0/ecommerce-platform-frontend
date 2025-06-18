@@ -7,61 +7,61 @@
 
     <!-- 搜索和操作区域 -->
     <a-card class="search-card" title="订单搜索">
-     <el-form :inline="true" :model="searchForm" class="search-form">
-       <el-form-item label="商品名称">
-         <el-input
-           v-model="searchForm.name"
-           placeholder="请输入商品名称"
-           clearable
-           style="width: 200px"
-         />
-       </el-form-item>
-       <el-form-item label="店铺ID">
-         <el-input
-           v-model="searchForm.storeId"
-           placeholder="请输入店铺ID"
-           clearable
-           style="width: 150px"
-         />
-       </el-form-item>
-       <el-form-item label="价格范围">
-         <el-input
-           v-model="searchForm.minPrice"
-           placeholder="最低价格"
-           style="width: 120px"
-         />
-         <span style="margin: 0 10px">-</span>
-         <el-input
-           v-model="searchForm.maxPrice"
-           placeholder="最高价格"
-           style="width: 120px"
-         />
-       </el-form-item>
-       <el-form-item label="商品状态">
-         <el-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width:120px">
-           <el-option label="上架" :value="1" />
-           <el-option label="下架" :value="0" />
-         </el-select>
-       </el-form-item>
-       <el-form-item label="库存状态">
-         <el-select v-model="searchForm.inStock" placeholder="请选择库存状态" clearable style="width:120px">
-           <el-option label="有库存" :value="true" />
-           <el-option label="无库存" :value="false" />
-         </el-select>
-       </el-form-item>
-       <a-form-item>
-         <a-space>
-           <a-button type="primary" @click="searchProducts">
-             <template #icon><icon-search /></template>
-             搜索
-           </a-button>
-           <a-button @click="resetSearch">
-             <template #icon><icon-refresh /></template>
-             重置
-           </a-button>
-         </a-space>
-       </a-form-item>
-     </el-form>
+      <a-form :model="searchForm" layout="inline" class="search-form">
+        <a-form-item label="商品名称">
+          <a-input
+            v-model="searchForm.name"
+            placeholder="请输入商品名称"
+            clearable
+            style="width: 200px"
+          />
+        </a-form-item>
+        <a-form-item label="店铺ID">
+          <a-input
+            v-model="searchForm.storeId"
+            placeholder="请输入店铺ID"
+            clearable
+            style="width: 150px"
+          />
+        </a-form-item>
+        <a-form-item label="价格范围">
+          <a-input
+            v-model="searchForm.minPrice"
+            placeholder="最低价格"
+            style="width: 120px"
+          />
+          <span style="margin: 0 10px">-</span>
+          <a-input
+            v-model="searchForm.maxPrice"
+            placeholder="最高价格"
+            style="width: 120px"
+          />
+        </a-form-item>
+        <a-form-item label="商品状态">
+          <a-select v-model="searchForm.status" placeholder="请选择状态" clearable style="width:120px">
+            <a-option label="上架" :value="1" />
+            <a-option label="下架" :value="0" />
+          </a-select>
+        </a-form-item>
+        <a-form-item label="库存状态">
+          <a-select v-model="searchForm.inStock" placeholder="请选择库存状态" clearable style="width:120px">
+            <a-option label="有库存" :value="true" />
+            <a-option label="无库存" :value="false" />
+          </a-select>
+        </a-form-item>
+        <a-form-item>
+          <a-space>
+            <a-button type="primary" @click="searchProducts">
+              <template #icon><icon-search /></template>
+              搜索
+            </a-button>
+            <a-button @click="resetSearch">
+              <template #icon><icon-refresh /></template>
+              重置
+            </a-button>
+          </a-space>
+        </a-form-item>
+      </a-form>
     </a-card>
 
     <!-- 操作按钮区域 -->
@@ -662,8 +662,12 @@ export default {
   align-items: flex-start;
 }
 
+.search-card {
+  margin-bottom: 16px;
+}
+
 .search-form {
-  flex: 1;
+  gap: 16px;
 }
 
 .action-buttons {
