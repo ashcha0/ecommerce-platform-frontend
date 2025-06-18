@@ -56,9 +56,14 @@
           </el-form-item>
         </el-form>
       </div>
-      <div class="action-buttons">
-        <el-button type="primary" @click="showAddDialog">新增商品</el-button>
-      </div>
+    </div>
+
+    <!-- 操作按钮区域 -->
+    <div class="action-bar">
+        <a-button type="primary" @click="showAddDialog">
+          <template #icon><icon-plus /></template>
+          新增商品
+        </a-button>
     </div>
 
     <!-- 商品列表表格 -->
@@ -657,6 +662,13 @@ export default {
 
 .action-buttons {
   margin-left: 20px;
+}
+
+.action-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
 }
 
 .table-section {
