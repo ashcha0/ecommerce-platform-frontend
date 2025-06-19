@@ -110,25 +110,16 @@ export const updateDeliveryStatusApi = (orderId, status) => {
  * @returns {Promise}
  */
 export const shipDeliveryApi = (orderId, trackingNo, shipper) => {
-  console.log('发货API调用开始')
-  console.log('请求URL:', `/delivery/order/${orderId}/ship`)
-  console.log('请求参数:', { orderId, trackingNo, shipper })
   
   const requestConfig = {
     url: `/delivery/order/${orderId}/ship`,
     method: 'post',
     params: { trackingNo, shipper }
   }
-  
-  console.log('完整请求配置:', requestConfig)
-  
+    
   return request(requestConfig).then(response => {
-    console.log('发货API响应成功:', response)
     return response
   }).catch(error => {
-    console.error('发货API请求失败:', error)
-    console.error('错误状态码:', error.response?.status)
-    console.error('错误响应数据:', error.response?.data)
     throw error
   })
 }
