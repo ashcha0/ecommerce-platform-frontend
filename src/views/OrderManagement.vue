@@ -112,11 +112,10 @@
               </div>
             </template>
           </a-table-column>
-          <!-- TODO: 客户用户名 -->
-          <a-table-column title="客户姓名" data-index="customerName" :width="150">
+          <a-table-column title="用户名" data-index="username" :width="150">
             <template #cell="{ record }">
               <div>
-                <div>{{ record.username || record.customerName || '-' }}</div>
+                <div>{{ record.customerName || '-' }}</div>
               </div>
             </template>
           </a-table-column>
@@ -281,6 +280,7 @@
       </a-form>
     </a-modal>
 
+    <!-- TODO: 订单金额小计 -->
     <!-- 订单详情抽屉 -->
     <a-drawer 
       v-model:visible="detailDrawerVisible" 
@@ -291,17 +291,23 @@
       <div v-if="currentOrder" class="order-detail">
         <a-descriptions :column="2" bordered>
           <a-descriptions-item label="订单号">{{ currentOrder.orderNo }}</a-descriptions-item>
-          <a-descriptions-item label="订单状态">
-            <a-tag :color="ORDER_STATUS_COLOR[currentOrder.orderStatus]">
-              {{ ORDER_STATUS_TEXT[currentOrder.orderStatus] || currentOrder.orderStatus }}
-            </a-tag>
+          <a-descriptions-item label="订单状态"> 
+            <a-tag :color="ORDER_STATUS_COLOR[currentOrder.orderStatus] || 'blue'"> 
+              {{ ORDER_STATUS_TEXT[currentOrder.status] || currentOrder.status || '未知状态' }} 
+            </a-tag> 
           </a-descriptions-item>
-          <a-descriptions-item label="下单时间">{{ formatDateTime(currentOrder.orderTime) }}</a-descriptions-item>
+          <a-descriptions-item label="下单时间">{{ formatDateTime(currentOrder.createTime) }}</a-descriptions-item>
           <a-descriptions-item label="订单金额">¥{{ currentOrder.totalAmount?.toFixed(2) || '0.00' }}</a-descriptions-item>
-          <a-descriptions-item label="客户信息" :span="2">
-            {{ currentOrder.customerInfo?.customerName || '-' }} 
-            {{ currentOrder.customerInfo?.phone || '' }}
-          </a-descriptions-item>
+          <a-descriptions-item label="客户信息" :span="2"> 
+             <div v-if="currentOrder.customerInfo">
+               <div>用户名：{{ currentOrder.customerInfo.customerName || '-' }}</div>
+               <div v-if="currentOrder.customerInfo.phone">电话：{{ currentOrder.customerInfo.phone }}</div>
+             </div>
+             <div v-else-if="currentOrder.customerId">
+               客户ID：{{ currentOrder.customerId }}
+             </div>
+             <div v-else>-</div>
+           </a-descriptions-item>
         </a-descriptions>
 
         <a-divider>商品明细</a-divider>
@@ -749,6 +755,49 @@ const showDetail = async (order) => {
     
     if (detailResponse.code === 200) {
       currentOrder.value = detailResponse.data
+      // 调试：打印订单详情数据结构
+      console.log('订单详情数据:', currentOrder.value)
+      console.log('订单状态值:', currentOrder.value.orderStatus)
+      console.log('ORDER_STATUS常量:', ORDER_STATUS)
+      console.log('ORDER_STATUS_TEXT常量:', ORDER_STATUS_TEXT)
+      
+      // 订单状态值转换处理
+      if (currentOrder.value.orderStatus) {
+        // 如果是数字，转换为对应的状态常量
+        if (typeof currentOrder.value.orderStatus === 'number') {
+          const statusKey = Object.keys(ORDER_STATUS).find(key => ORDER_STATUS[key] === currentOrder.value.orderStatus)
+          if (statusKey) {
+            console.log('状态转换:', currentOrder.value.orderStatus, '->', statusKey)
+            currentOrder.value.orderStatus = statusKey
+          }
+        }
+        // 如果是字符串但不在常量中，尝试转换为大写
+        else if (typeof currentOrder.value.orderStatus === 'string' && !ORDER_STATUS_TEXT[currentOrder.value.orderStatus]) {
+          const upperStatus = currentOrder.value.orderStatus.toUpperCase()
+          if (ORDER_STATUS_TEXT[upperStatus]) {
+            console.log('状态大写转换:', currentOrder.value.orderStatus, '->', upperStatus)
+            currentOrder.value.orderStatus = upperStatus
+          }
+        }
+      }
+      
+      // 如果没有客户信息，尝试通过customerId获取
+      if (!currentOrder.value.customerInfo && currentOrder.value.customerId) {
+        try {
+          const customerResponse = await getSimpleCustomersApi()
+          if (customerResponse.code === 200) {
+            const customer = customerResponse.data.find(c => c.id === currentOrder.value.customerId)
+            if (customer) {
+              currentOrder.value.customerInfo = {
+                customerName: customer.username || customer.name,
+                phone: customer.phone
+              }
+            }
+          }
+        } catch (error) {
+          console.log('获取客户信息失败:', error)
+        }
+      }
     } else {
       Message.error(detailResponse.message || '获取订单详情失败')
     }
