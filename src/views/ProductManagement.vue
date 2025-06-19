@@ -380,7 +380,6 @@ export default {
           Message.error(response.message || '获取商品列表失败')
         }
       } catch (error) {
-        console.error('获取商品列表失败:', error)
         Message.error('获取商品列表失败')
       } finally {
         loading.value = false
@@ -410,7 +409,6 @@ export default {
           Message.error(response.message || '搜索商品失败')
         }
       } catch (error) {
-        console.error('搜索商品失败:', error)
         Message.error('搜索商品失败')
       } finally {
         loading.value = false
@@ -451,7 +449,6 @@ export default {
           Message.error(response.message || '获取商品详情失败')
         }
       } catch (error) {
-        console.error('获取商品详情失败:', error)
         Message.error('获取商品详情失败')
       }
     }
@@ -478,7 +475,6 @@ export default {
         }
       } catch (error) {
         if (error !== 'cancel') {
-          console.error('删除商品失败:', error)
           Message.error('删除失败')
         }
       }
@@ -509,7 +505,6 @@ export default {
         }
       } catch (error) {
         if (error !== 'cancel') {
-          console.error('切换商品状态失败:', error)
           Message.error('操作失败')
         }
       }
@@ -557,7 +552,6 @@ export default {
           Message.error(response.message || (isEdit.value ? '更新失败' : '创建失败'))
         }
       } catch (error) {
-        console.error('提交表单失败:', error)
         Message.error(isEdit.value ? '更新失败' : '创建失败')
       }
     }

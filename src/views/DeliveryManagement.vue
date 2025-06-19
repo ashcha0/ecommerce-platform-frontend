@@ -151,9 +151,29 @@
                     <template #icon><icon-edit /></template>
                     编辑配送
                   </a-doption>
-                  <a-doption @click="handleAction('ship', record)" v-if="record.status === 'PENDING'">
+                  <a-doption @click="handleAction('pay', record)" v-if="record.status === 'PAYING'">
+                    <template #icon><icon-check-circle /></template>
+                    确认付款
+                  </a-doption>
+                  <a-doption @click="handleAction('ship', record)" v-if="record.status === 'SHIPPING'">
                     <template #icon><icon-send /></template>
                     发货
+                  </a-doption>
+                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'RECEIPTING'">
+                    <template #icon><icon-check /></template>
+                    确认收货
+                  </a-doption>
+                  <a-doption @click="handleAction('cancel', record)" v-if="['PAYING', 'SHIPPING'].includes(record.status)">
+                    <template #icon><icon-close-circle /></template>
+                    取消订单
+                  </a-doption>
+                  <a-doption @click="handleAction('afterSale', record)" v-if="record.status === 'COMPLETED'">
+                    <template #icon><icon-exclamation-circle /></template>
+                    申请售后
+                  </a-doption>
+                  <a-doption @click="handleAction('completeAfterSale', record)" v-if="record.status === 'PROCESSING'">
+                    <template #icon><icon-check-circle /></template>
+                    完成售后
                   </a-doption>
                   <a-doption @click="handleAction('updateStatus', record)">
                     <template #icon><icon-settings /></template>
@@ -162,10 +182,6 @@
                   <a-doption @click="handleAction('track', record)" v-if="record.trackingNo">
                     <template #icon><icon-location /></template>
                     物流跟踪
-                  </a-doption>
-                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'DELIVERED'">
-                    <template #icon><icon-check /></template>
-                    确认收货
                   </a-doption>
                   <a-doption @click="handleAction('delete', record)" class="danger">
                     <template #icon><icon-delete /></template>
@@ -333,6 +349,15 @@
         <a-form-item label="物流公司" field="shipper">
           <a-input v-model="shipForm.shipper" placeholder="输入物流公司" />
         </a-form-item>
+        <a-form-item label="预计送达时间" field="estimateTime">
+          <a-date-picker 
+            v-model="shipForm.estimateTime" 
+            show-time
+            format="YYYY-MM-DD HH:mm:ss"
+            placeholder="选择预计送达时间（可选）"
+            style="width: 100%"
+          />
+        </a-form-item>
       </a-form>
     </a-modal>
 
@@ -484,6 +509,10 @@ import {
   updateDeliveryStatusApi,
   shipDeliveryApi,
   confirmDeliveryApi,
+  confirmPaymentApi,
+  cancelOrderApi,
+  applyAfterSaleApi,
+  completeAfterSaleApi,
   getDeliveryStatsApi,
   trackDeliveryApi,
   exportDeliveriesApi
@@ -492,19 +521,23 @@ import { getSimpleOrdersApi } from '@/api/order'
 
 // 配送状态映射
 const DELIVERY_STATUS_TEXT = {
-  PENDING: '待发货',
-  SHIPPED: '已发货',
-  DELIVERED: '已送达',
-  CONFIRMED: '已确认',
-  CANCELLED: '已取消'
+  PAYING: '待付款',
+  SHIPPING: '待发货',
+  RECEIPTING: '待收货',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  PROCESSING: '售后处理中',
+  PROCESSED: '售后处理完成'
 }
 
 const DELIVERY_STATUS_COLOR = {
-  PENDING: 'orange',
-  SHIPPED: 'blue',
-  DELIVERED: 'green',
-  CONFIRMED: 'arcoblue',
-  CANCELLED: 'red'
+  PAYING: 'red',
+  SHIPPING: 'orange',
+  RECEIPTING: 'blue',
+  COMPLETED: 'green',
+  CANCELLED: 'gray',
+  PROCESSING: 'purple',
+  PROCESSED: 'arcoblue'
 }
 
 // 响应式数据
@@ -595,15 +628,18 @@ const shipFormRef = ref()
 const shipForm = reactive({
   orderId: null,
   trackingNo: '',
-  shipper: ''
+  shipper: '',
+  estimateTime: ''
 })
 
 const shipRules = {
   trackingNo: [
-    { required: true, message: '请输入物流单号' }
+    { required: true, message: '请输入物流单号', trigger: 'blur' },
+    { minLength: 1, message: '物流单号不能为空', trigger: 'blur' }
   ],
   shipper: [
-    { required: true, message: '请输入物流公司' }
+    { required: true, message: '请输入物流公司', trigger: 'blur' },
+    { minLength: 1, message: '物流公司不能为空', trigger: 'blur' }
   ]
 }
 
@@ -616,9 +652,7 @@ const statusForm = reactive({
 })
 
 const statusRules = {
-  status: [
-    { required: true, message: '请选择配送状态' }
-  ]
+  status: []
 }
 
 // 配送详情抽屉
@@ -790,32 +824,14 @@ const resetCreateForm = () => {
 // 创建配送
 const handleCreateDelivery = async () => {
   const startTime = Date.now()
-  console.log('=== 开始创建配送信息流程 ===', {
-    timestamp: new Date().toISOString(),
-    formData: JSON.parse(JSON.stringify(createForm))
-  })
   
   try {
     // 步骤1: 表单验证
-    console.log('步骤1: 开始表单验证...', {
-      currentFormData: JSON.parse(JSON.stringify(createForm)),
-      requiredFields: ['orderId', 'consigneeName', 'consigneePhone', 'deliveryAddress']
-    })
     const validationStart = Date.now()
     
     try {
       // Arco Design的validate方法在验证失败时会reject，成功时resolve undefined
       await createFormRef.value?.validate()
-      
-      console.log('✓ 表单验证通过', {
-        validationTime: Date.now() - validationStart + 'ms',
-        formData: {
-          orderId: createForm.orderId,
-          consigneeName: createForm.consigneeName,
-          consigneePhone: createForm.consigneePhone,
-          deliveryAddress: createForm.deliveryAddress
-        }
-      })
     } catch (validationError) {
       // 检查具体哪些字段验证失败
       const emptyRequiredFields = []
@@ -830,19 +846,6 @@ const handleCreateDelivery = async () => {
       }
       if (!createForm.deliveryAddress) emptyRequiredFields.push('配送地址')
       
-      console.warn('✗ 表单验证失败，停止创建流程', {
-        validationTime: Date.now() - validationStart + 'ms',
-        validationError: validationError,
-        emptyRequiredFields: emptyRequiredFields,
-        invalidFields: invalidFields,
-        formData: {
-          orderId: createForm.orderId || '未选择',
-          consigneeName: createForm.consigneeName || '未填写',
-          consigneePhone: createForm.consigneePhone || '未填写',
-          deliveryAddress: createForm.deliveryAddress || '未填写'
-        }
-      })
-      
       // 给用户更明确的提示
       if (emptyRequiredFields.length > 0) {
         Message.error(`请填写必填字段: ${emptyRequiredFields.join('、')}`)
@@ -855,12 +858,7 @@ const handleCreateDelivery = async () => {
       return
     }
     
-    console.log('✓ 表单验证通过', {
-      validationTime: Date.now() - validationStart + 'ms'
-    })
-    
     // 步骤2: 数据准备和验证
-    console.log('步骤2: 准备请求数据...')
     const data = {
       orderId: createForm.orderId,
       trackingNo: createForm.trackingNo,
@@ -877,107 +875,40 @@ const handleCreateDelivery = async () => {
     const missingFields = requiredFields.filter(field => !data[field])
     
     if (missingFields.length > 0) {
-      console.error('必填字段缺失:', missingFields)
       Message.error(`请填写必填字段: ${missingFields.join(', ')}`)
       return
     }
     
-    console.log('✓ 数据准备完成', {
-      dataSize: JSON.stringify(data).length + ' bytes',
-      requiredFieldsCheck: '通过',
-      optionalFields: Object.keys(data).filter(key => data[key] && !requiredFields.includes(key))
-    })
-    
-    // 步骤3: 发送网络请求
-    console.log('步骤3: 发送创建配送请求...', {
-      url: '/api/delivery',
-      method: 'POST',
-      data: data
-    })
-    
+    // 步骤3: 发送网络请求   
     const requestStart = Date.now()
     const response = await createDeliveryApi(data)
     const requestTime = Date.now() - requestStart
     
-    console.log('✓ 网络请求完成', {
-      requestTime: requestTime + 'ms',
-      responseSize: JSON.stringify(response).length + ' bytes',
-      statusCode: response.code
-    })
-    
-    // 步骤4: 响应处理
-    console.log('步骤4: 处理服务器响应...')
-    
+    // 步骤4: 响应处理    
     if (response.code === 200) {
-      console.log('✓ 配送信息创建成功', {
-        deliveryId: response.data?.id,
-        totalTime: Date.now() - startTime + 'ms'
-      })
-      
       Message.success('创建配送信息成功')
       
       // 步骤5: 界面更新
-      console.log('步骤5: 更新界面状态...')
       createModalVisible.value = false
       resetCreateForm()
       
       // 重新加载配送列表
-      console.log('步骤6: 重新加载配送列表...')
       const reloadStart = Date.now()
       await loadDeliveries()
-      console.log('✓ 配送列表重新加载完成', {
-        reloadTime: Date.now() - reloadStart + 'ms'
-      })
-      
-      console.log('=== 配送信息创建流程完成 ===', {
-        totalTime: Date.now() - startTime + 'ms',
-        success: true
-      })
-      
     } else {
-      console.error('✗ 服务器返回错误', {
-        code: response.code,
-        message: response.message,
-        data: response.data,
-        totalTime: Date.now() - startTime + 'ms'
-      })
       Message.error(response.message || '创建配送信息失败')
     }
     
   } catch (error) {
     const errorTime = Date.now() - startTime
-    console.error('=== 创建配送信息流程异常 ===', {
-      errorTime: errorTime + 'ms',
-      errorType: error.constructor.name,
-      errorMessage: error.message
-    })
     
     if (error.response) {
       // 服务器响应错误
-      console.error('服务器响应错误详情:', {
-        status: error.response.status,
-        statusText: error.response.statusText,
-        headers: error.response.headers,
-        data: error.response.data,
-        url: error.response.config?.url,
-        method: error.response.config?.method
-      })
-      
       const errorMsg = error.response.data?.message || error.response.statusText || '创建配送信息失败'
       Message.error(`服务器错误 (${error.response.status}): ${errorMsg}`)
       
     } else if (error.request) {
       // 网络请求错误
-      console.error('网络请求错误详情:', {
-        timeout: error.code === 'ECONNABORTED',
-        networkError: !error.response,
-        requestConfig: {
-          url: error.config?.url,
-          method: error.config?.method,
-          timeout: error.config?.timeout
-        }
-      })
-      
       if (error.code === 'ECONNABORTED') {
         Message.error('请求超时，请检查网络连接后重试')
       } else {
@@ -986,19 +917,8 @@ const handleCreateDelivery = async () => {
       
     } else {
       // 其他错误
-      console.error('其他错误详情:', {
-        message: error.message,
-        stack: error.stack,
-        name: error.name
-      })
-      
       Message.error(error.message || '创建配送信息时发生未知错误')
     }
-    
-    console.log('=== 创建配送信息流程结束 ===', {
-      totalTime: errorTime + 'ms',
-      success: false
-    })
   }
 }
 
@@ -1018,15 +938,19 @@ const resetEditForm = () => {
 const handleUpdateDelivery = async () => {
   try {
     const valid = await editFormRef.value?.validate()
-    if (!valid) return
+    // 当所有字段都不是必填时，validate()可能返回undefined，这种情况下认为验证通过
+    if (valid === false) {
+      return
+    }
     
-    const data = {
+    const updateData = {
+      id: editForm.id,
       trackingNo: editForm.trackingNo,
       shipper: editForm.shipper,
       estimateTime: editForm.estimateTime
     }
-    
-    const response = await updateDeliveryApi(editForm.orderId, data)
+
+    const response = await updateDeliveryApi(editForm.orderId, updateData)
     if (response.code === 200) {
       Message.success('更新配送信息成功')
       editModalVisible.value = false
@@ -1036,7 +960,7 @@ const handleUpdateDelivery = async () => {
       Message.error(response.message || '更新配送信息失败')
     }
   } catch (error) {
-    Message.error('更新配送信息失败')
+    Message.error('更新配送信息失败: ' + (error.response?.data?.message || error.message))
   }
 }
 
@@ -1045,7 +969,8 @@ const resetShipForm = () => {
   Object.assign(shipForm, {
     orderId: null,
     trackingNo: '',
-    shipper: ''
+    shipper: '',
+    estimateTime: ''
   })
   shipFormRef.value?.resetFields()
 }
@@ -1053,10 +978,19 @@ const resetShipForm = () => {
 // 发货
 const handleShip = async () => {
   try {
-    const valid = await shipFormRef.value?.validate()
-    if (!valid) return
+    try {
+      const valid = await shipFormRef.value?.validate()
+      
+      // Arco Design的validate方法：成功时返回undefined，失败时抛出错误或返回错误信息
+      if (valid !== undefined) {
+        return
+      }
+    } catch (error) {
+      return
+    }
     
-    const response = await shipDeliveryApi(shipForm.orderId, shipForm.trackingNo, shipForm.shipper)
+    const response = await shipDeliveryApi(shipForm.orderId, shipForm.trackingNo, shipForm.shipper, shipForm.estimateTime)
+    
     if (response.code === 200) {
       Message.success('发货成功')
       shipModalVisible.value = false
@@ -1066,7 +1000,7 @@ const handleShip = async () => {
       Message.error(response.message || '发货失败')
     }
   } catch (error) {
-    Message.error('发货失败')
+    Message.error('发货失败: ' + (error.message || '未知错误'))
   }
 }
 
@@ -1082,8 +1016,6 @@ const resetStatusForm = () => {
 // 更新状态
 const handleUpdateStatus = async () => {
   try {
-    const valid = await statusFormRef.value?.validate()
-    if (!valid) return
     
     const response = await updateDeliveryStatusApi(statusForm.orderId, statusForm.status)
     if (response.code === 200) {
@@ -1145,8 +1077,20 @@ const handleAction = (action, delivery) => {
     case 'track':
       handleTrack(delivery)
       break
+    case 'pay':
+      handlePay(delivery)
+      break
     case 'confirm':
       handleConfirm(delivery)
+      break
+    case 'cancel':
+      handleCancel(delivery)
+      break
+    case 'afterSale':
+      handleAfterSale(delivery)
+      break
+    case 'completeAfterSale':
+      handleCompleteAfterSale(delivery)
       break
     case 'delete':
       handleDelete(delivery)
@@ -1169,19 +1113,109 @@ const handleTrack = async (delivery) => {
   }
 }
 
+// 确认付款
+const handlePay = async (delivery) => {
+  Modal.confirm({
+    title: '确认付款',
+    content: `确定要确认订单 ${delivery.orderId} 的付款吗？`,
+    onOk: async () => {
+      try {
+        const response = await confirmPaymentApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('确认付款成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '确认付款失败')
+        }
+      } catch (error) {
+        Message.error('确认付款失败')
+      }
+    }
+  })
+}
+
 // 确认收货
 const handleConfirm = async (delivery) => {
-  try {
-    const response = await confirmDeliveryApi(delivery.orderId)
-    if (response.code === 200) {
-      Message.success('确认收货成功')
-      await loadDeliveries()
-    } else {
-      Message.error(response.message || '确认收货失败')
+  Modal.confirm({
+    title: '确认收货',
+    content: `确定要确认订单 ${delivery.orderId} 的收货吗？`,
+    onOk: async () => {
+      try {
+        const response = await confirmDeliveryApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('确认收货成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '确认收货失败')
+        }
+      } catch (error) {
+        Message.error('确认收货失败')
+      }
     }
-  } catch (error) {
-    Message.error('确认收货失败')
-  }
+  })
+}
+
+// 取消订单
+const handleCancel = async (delivery) => {
+  Modal.confirm({
+    title: '取消订单',
+    content: `确定要取消订单 ${delivery.orderId} 吗？此操作不可撤销。`,
+    onOk: async () => {
+      try {
+        const response = await cancelOrderApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('取消订单成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '取消订单失败')
+        }
+      } catch (error) {
+        Message.error('取消订单失败')
+      }
+    }
+  })
+}
+
+// 申请售后
+const handleAfterSale = async (delivery) => {
+  Modal.confirm({
+    title: '申请售后',
+    content: `确定要为订单 ${delivery.orderId} 申请售后吗？`,
+    onOk: async () => {
+      try {
+        const response = await applyAfterSaleApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('申请售后成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '申请售后失败')
+        }
+      } catch (error) {
+        Message.error('申请售后失败')
+      }
+    }
+  })
+}
+
+// 完成售后
+const handleCompleteAfterSale = async (delivery) => {
+  Modal.confirm({
+    title: '完成售后',
+    content: `确定要完成订单 ${delivery.orderId} 的售后处理吗？`,
+    onOk: async () => {
+      try {
+        const response = await completeAfterSaleApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('完成售后成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '完成售后失败')
+        }
+      } catch (error) {
+        Message.error('完成售后失败')
+      }
+    }
+  })
 }
 
 // 删除配送

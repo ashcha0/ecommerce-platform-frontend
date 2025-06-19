@@ -755,11 +755,6 @@ const showDetail = async (order) => {
     
     if (detailResponse.code === 200) {
       currentOrder.value = detailResponse.data
-      // 调试：打印订单详情数据结构
-      console.log('订单详情数据:', currentOrder.value)
-      console.log('订单状态值:', currentOrder.value.orderStatus)
-      console.log('ORDER_STATUS常量:', ORDER_STATUS)
-      console.log('ORDER_STATUS_TEXT常量:', ORDER_STATUS_TEXT)
       
       // 订单状态值转换处理
       if (currentOrder.value.orderStatus) {
@@ -767,7 +762,6 @@ const showDetail = async (order) => {
         if (typeof currentOrder.value.orderStatus === 'number') {
           const statusKey = Object.keys(ORDER_STATUS).find(key => ORDER_STATUS[key] === currentOrder.value.orderStatus)
           if (statusKey) {
-            console.log('状态转换:', currentOrder.value.orderStatus, '->', statusKey)
             currentOrder.value.orderStatus = statusKey
           }
         }
@@ -775,7 +769,6 @@ const showDetail = async (order) => {
         else if (typeof currentOrder.value.orderStatus === 'string' && !ORDER_STATUS_TEXT[currentOrder.value.orderStatus]) {
           const upperStatus = currentOrder.value.orderStatus.toUpperCase()
           if (ORDER_STATUS_TEXT[upperStatus]) {
-            console.log('状态大写转换:', currentOrder.value.orderStatus, '->', upperStatus)
             currentOrder.value.orderStatus = upperStatus
           }
         }
@@ -795,7 +788,6 @@ const showDetail = async (order) => {
             }
           }
         } catch (error) {
-          console.log('获取客户信息失败:', error)
         }
       }
     } else {

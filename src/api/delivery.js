@@ -109,11 +109,18 @@ export const updateDeliveryStatusApi = (orderId, status) => {
  * @param {string} shipper - 物流公司
  * @returns {Promise}
  */
-export const shipDeliveryApi = (orderId, trackingNo, shipper) => {
-  return request({
+export const shipDeliveryApi = (orderId, trackingNo, shipper, estimateTime) => {
+  
+  const requestConfig = {
     url: `/delivery/order/${orderId}/ship`,
     method: 'post',
-    params: { trackingNo, shipper }
+    params: { trackingNo, shipper, estimateTime }
+  }
+    
+  return request(requestConfig).then(response => {
+    return response
+  }).catch(error => {
+    throw error
   })
 }
 
@@ -215,5 +222,53 @@ export const exportDeliveriesApi = (params = {}) => {
     method: 'get',
     params,
     responseType: 'blob'
+  })
+}
+
+/**
+ * 确认付款
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export const confirmPaymentApi = (orderId) => {
+  return request({
+    url: `/delivery/order/${orderId}/confirm-payment`,
+    method: 'post'
+  })
+}
+
+/**
+ * 取消订单
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export const cancelOrderApi = (orderId) => {
+  return request({
+    url: `/delivery/order/${orderId}/cancel`,
+    method: 'post'
+  })
+}
+
+/**
+ * 申请售后
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export const applyAfterSaleApi = (orderId) => {
+  return request({
+    url: `/delivery/order/${orderId}/apply-after-sale`,
+    method: 'post'
+  })
+}
+
+/**
+ * 完成售后
+ * @param {number} orderId - 订单ID
+ * @returns {Promise}
+ */
+export const completeAfterSaleApi = (orderId) => {
+  return request({
+    url: `/delivery/order/${orderId}/complete-after-sale`,
+    method: 'post'
   })
 }

@@ -649,16 +649,13 @@ const handlePageSizeChange = (pageSize) => {
 // 获取商品列表
 const fetchProductList = async (searchKeyword = '') => {
   try {
-    console.log('[InventoryManagement] 开始获取商品列表, 搜索关键词:', searchKeyword)
     productListLoading.value = true
     
     // 使用正确的API调用方式
     const response = await getSimpleProductsApi()
-    console.log('[InventoryManagement] 商品列表API响应:', response)
     
     if (response.code === 200) {
       let products = response.data || []
-      console.log('[InventoryManagement] 获取到商品数据:', products)
       
       // 如果有搜索关键词，进行过滤
       if (searchKeyword) {
@@ -666,54 +663,38 @@ const fetchProductList = async (searchKeyword = '') => {
           product.name.toLowerCase().includes(searchKeyword.toLowerCase()) ||
           product.id.toString().includes(searchKeyword)
         )
-        console.log('[InventoryManagement] 过滤后的商品数据:', products)
       }
       
       productList.value = products
-      console.log('[InventoryManagement] 商品列表更新完成, 共', products.length, '个商品')
     } else {
-      console.error('[InventoryManagement] 获取商品列表失败:', response.message)
       Message.error(response.message || '获取商品列表失败')
       productList.value = []
     }
   } catch (error) {
-    console.error('[InventoryManagement] 获取商品列表异常:', error)
     Message.error('获取商品列表失败')
     productList.value = []
   } finally {
     productListLoading.value = false
-    console.log('[InventoryManagement] 商品列表加载完成')
   }
 }
 
 // 处理商品搜索
 const handleProductSearch = (searchKeyword) => {
-  console.log('[InventoryManagement] 商品搜索触发, 关键词:', searchKeyword)
   fetchProductList(searchKeyword)
 }
 
 // 处理商品选择
 const handleProductSelect = (productId) => {
-  console.log('[InventoryManagement] 商品选择触发, 商品ID:', productId)
   const product = productList.value.find(p => p.id === productId)
-  console.log('[InventoryManagement] 选中的商品信息:', product)
   selectedProduct.value = product
   
   if (product) {
-    console.log('[InventoryManagement] 商品选择成功:', {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      status: product.status
-    })
   } else {
-    console.warn('[InventoryManagement] 未找到对应的商品信息, 商品ID:', productId)
   }
 }
 
 // 显示创建模态框
 const showCreateModal = async () => {
-  console.log('[InventoryManagement] 显示创建库存模态框')
   createModalVisible.value = true
   // 打开模态框时获取商品列表
   await fetchProductList()
