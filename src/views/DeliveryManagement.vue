@@ -159,7 +159,7 @@
                     <template #icon><icon-send /></template>
                     发货
                   </a-doption>
-                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'RECEIPTING'">
+                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'SHIPPING'">
                     <template #icon><icon-check /></template>
                     确认收货
                   </a-doption>
