@@ -109,12 +109,12 @@ export const updateDeliveryStatusApi = (orderId, status) => {
  * @param {string} shipper - 物流公司
  * @returns {Promise}
  */
-export const shipDeliveryApi = (orderId, trackingNo, shipper) => {
+export const shipDeliveryApi = (orderId, trackingNo, shipper, estimateTime) => {
   
   const requestConfig = {
     url: `/delivery/order/${orderId}/ship`,
     method: 'post',
-    params: { trackingNo, shipper }
+    params: { trackingNo, shipper, estimateTime }
   }
     
   return request(requestConfig).then(response => {

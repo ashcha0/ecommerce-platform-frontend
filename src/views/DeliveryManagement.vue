@@ -349,6 +349,15 @@
         <a-form-item label="物流公司" field="shipper">
           <a-input v-model="shipForm.shipper" placeholder="输入物流公司" />
         </a-form-item>
+        <a-form-item label="预计送达时间" field="estimateTime">
+          <a-date-picker 
+            v-model="shipForm.estimateTime" 
+            show-time
+            format="YYYY-MM-DD HH:mm:ss"
+            placeholder="选择预计送达时间（可选）"
+            style="width: 100%"
+          />
+        </a-form-item>
       </a-form>
     </a-modal>
 
@@ -619,7 +628,8 @@ const shipFormRef = ref()
 const shipForm = reactive({
   orderId: null,
   trackingNo: '',
-  shipper: ''
+  shipper: '',
+  estimateTime: ''
 })
 
 const shipRules = {
@@ -959,7 +969,8 @@ const resetShipForm = () => {
   Object.assign(shipForm, {
     orderId: null,
     trackingNo: '',
-    shipper: ''
+    shipper: '',
+    estimateTime: ''
   })
   shipFormRef.value?.resetFields()
 }
@@ -978,7 +989,7 @@ const handleShip = async () => {
       return
     }
     
-    const response = await shipDeliveryApi(shipForm.orderId, shipForm.trackingNo, shipForm.shipper)
+    const response = await shipDeliveryApi(shipForm.orderId, shipForm.trackingNo, shipForm.shipper, shipForm.estimateTime)
     
     if (response.code === 200) {
       Message.success('发货成功')
