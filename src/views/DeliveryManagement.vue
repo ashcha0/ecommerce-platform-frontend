@@ -151,9 +151,29 @@
                     <template #icon><icon-edit /></template>
                     编辑配送
                   </a-doption>
-                  <a-doption @click="handleAction('ship', record)" v-if="record.status === 'PENDING'">
+                  <a-doption @click="handleAction('pay', record)" v-if="record.status === 'PAYING'">
+                    <template #icon><icon-check-circle /></template>
+                    确认付款
+                  </a-doption>
+                  <a-doption @click="handleAction('ship', record)" v-if="record.status === 'SHIPPING'">
                     <template #icon><icon-send /></template>
                     发货
+                  </a-doption>
+                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'RECEIPTING'">
+                    <template #icon><icon-check /></template>
+                    确认收货
+                  </a-doption>
+                  <a-doption @click="handleAction('cancel', record)" v-if="['PAYING', 'SHIPPING'].includes(record.status)">
+                    <template #icon><icon-close-circle /></template>
+                    取消订单
+                  </a-doption>
+                  <a-doption @click="handleAction('afterSale', record)" v-if="record.status === 'COMPLETED'">
+                    <template #icon><icon-exclamation-circle /></template>
+                    申请售后
+                  </a-doption>
+                  <a-doption @click="handleAction('completeAfterSale', record)" v-if="record.status === 'PROCESSING'">
+                    <template #icon><icon-check-circle /></template>
+                    完成售后
                   </a-doption>
                   <a-doption @click="handleAction('updateStatus', record)">
                     <template #icon><icon-settings /></template>
@@ -162,10 +182,6 @@
                   <a-doption @click="handleAction('track', record)" v-if="record.trackingNo">
                     <template #icon><icon-location /></template>
                     物流跟踪
-                  </a-doption>
-                  <a-doption @click="handleAction('confirm', record)" v-if="record.status === 'DELIVERED'">
-                    <template #icon><icon-check /></template>
-                    确认收货
                   </a-doption>
                   <a-doption @click="handleAction('delete', record)" class="danger">
                     <template #icon><icon-delete /></template>
@@ -484,6 +500,10 @@ import {
   updateDeliveryStatusApi,
   shipDeliveryApi,
   confirmDeliveryApi,
+  confirmPaymentApi,
+  cancelOrderApi,
+  applyAfterSaleApi,
+  completeAfterSaleApi,
   getDeliveryStatsApi,
   trackDeliveryApi,
   exportDeliveriesApi
@@ -492,19 +512,23 @@ import { getSimpleOrdersApi } from '@/api/order'
 
 // 配送状态映射
 const DELIVERY_STATUS_TEXT = {
-  PENDING: '待发货',
-  SHIPPED: '已发货',
-  DELIVERED: '已送达',
-  CONFIRMED: '已确认',
-  CANCELLED: '已取消'
+  PAYING: '待付款',
+  SHIPPING: '待发货',
+  RECEIPTING: '待收货',
+  COMPLETED: '已完成',
+  CANCELLED: '已取消',
+  PROCESSING: '售后处理中',
+  PROCESSED: '售后处理完成'
 }
 
 const DELIVERY_STATUS_COLOR = {
-  PENDING: 'orange',
-  SHIPPED: 'blue',
-  DELIVERED: 'green',
-  CONFIRMED: 'arcoblue',
-  CANCELLED: 'red'
+  PAYING: 'red',
+  SHIPPING: 'orange',
+  RECEIPTING: 'blue',
+  COMPLETED: 'green',
+  CANCELLED: 'gray',
+  PROCESSING: 'purple',
+  PROCESSED: 'arcoblue'
 }
 
 // 响应式数据
@@ -600,10 +624,12 @@ const shipForm = reactive({
 
 const shipRules = {
   trackingNo: [
-    { required: true, message: '请输入物流单号' }
+    { required: true, message: '请输入物流单号', trigger: 'blur' },
+    { minLength: 1, message: '物流单号不能为空', trigger: 'blur' }
   ],
   shipper: [
-    { required: true, message: '请输入物流公司' }
+    { required: true, message: '请输入物流公司', trigger: 'blur' },
+    { minLength: 1, message: '物流公司不能为空', trigger: 'blur' }
   ]
 }
 
@@ -1053,20 +1079,64 @@ const resetShipForm = () => {
 // 发货
 const handleShip = async () => {
   try {
-    const valid = await shipFormRef.value?.validate()
-    if (!valid) return
+    console.log('开始发货操作，表单数据:', shipForm)
+    console.log('表单数据详情:', {
+      orderId: shipForm.orderId,
+      trackingNo: shipForm.trackingNo,
+      shipper: shipForm.shipper,
+      trackingNoLength: shipForm.trackingNo?.length,
+      shipperLength: shipForm.shipper?.length
+    })
+    
+    console.log('开始表单验证...')
+    try {
+      const valid = await shipFormRef.value?.validate()
+      console.log('表单验证结果:', valid)
+      
+      // Arco Design的validate方法：成功时返回undefined，失败时抛出错误或返回错误信息
+      if (valid !== undefined) {
+        console.log('表单验证失败，验证错误:', valid)
+        console.log('检查表单字段:')
+        console.log('- trackingNo:', shipForm.trackingNo, '长度:', shipForm.trackingNo?.length)
+        console.log('- shipper:', shipForm.shipper, '长度:', shipForm.shipper?.length)
+        return
+      }
+    } catch (error) {
+      console.log('表单验证失败，捕获错误:', error)
+      console.log('检查表单字段:')
+      console.log('- trackingNo:', shipForm.trackingNo, '长度:', shipForm.trackingNo?.length)
+      console.log('- shipper:', shipForm.shipper, '长度:', shipForm.shipper?.length)
+      return
+    }
+    
+    console.log('表单验证通过，准备发送请求')
+    console.log('请求参数:', {
+      orderId: shipForm.orderId,
+      trackingNo: shipForm.trackingNo,
+      shipper: shipForm.shipper
+    })
     
     const response = await shipDeliveryApi(shipForm.orderId, shipForm.trackingNo, shipForm.shipper)
+    console.log('发货API响应:', response)
+    
     if (response.code === 200) {
+      console.log('发货成功')
       Message.success('发货成功')
       shipModalVisible.value = false
       resetShipForm()
       await loadDeliveries()
     } else {
+      console.error('发货失败，响应错误:', response)
       Message.error(response.message || '发货失败')
     }
   } catch (error) {
-    Message.error('发货失败')
+    console.error('发货操作异常:', error)
+    console.error('错误详情:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response
+    })
+    Message.error('发货失败: ' + (error.message || '未知错误'))
   }
 }
 
@@ -1145,8 +1215,20 @@ const handleAction = (action, delivery) => {
     case 'track':
       handleTrack(delivery)
       break
+    case 'pay':
+      handlePay(delivery)
+      break
     case 'confirm':
       handleConfirm(delivery)
+      break
+    case 'cancel':
+      handleCancel(delivery)
+      break
+    case 'afterSale':
+      handleAfterSale(delivery)
+      break
+    case 'completeAfterSale':
+      handleCompleteAfterSale(delivery)
       break
     case 'delete':
       handleDelete(delivery)
@@ -1169,19 +1251,109 @@ const handleTrack = async (delivery) => {
   }
 }
 
+// 确认付款
+const handlePay = async (delivery) => {
+  Modal.confirm({
+    title: '确认付款',
+    content: `确定要确认订单 ${delivery.orderId} 的付款吗？`,
+    onOk: async () => {
+      try {
+        const response = await confirmPaymentApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('确认付款成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '确认付款失败')
+        }
+      } catch (error) {
+        Message.error('确认付款失败')
+      }
+    }
+  })
+}
+
 // 确认收货
 const handleConfirm = async (delivery) => {
-  try {
-    const response = await confirmDeliveryApi(delivery.orderId)
-    if (response.code === 200) {
-      Message.success('确认收货成功')
-      await loadDeliveries()
-    } else {
-      Message.error(response.message || '确认收货失败')
+  Modal.confirm({
+    title: '确认收货',
+    content: `确定要确认订单 ${delivery.orderId} 的收货吗？`,
+    onOk: async () => {
+      try {
+        const response = await confirmDeliveryApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('确认收货成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '确认收货失败')
+        }
+      } catch (error) {
+        Message.error('确认收货失败')
+      }
     }
-  } catch (error) {
-    Message.error('确认收货失败')
-  }
+  })
+}
+
+// 取消订单
+const handleCancel = async (delivery) => {
+  Modal.confirm({
+    title: '取消订单',
+    content: `确定要取消订单 ${delivery.orderId} 吗？此操作不可撤销。`,
+    onOk: async () => {
+      try {
+        const response = await cancelOrderApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('取消订单成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '取消订单失败')
+        }
+      } catch (error) {
+        Message.error('取消订单失败')
+      }
+    }
+  })
+}
+
+// 申请售后
+const handleAfterSale = async (delivery) => {
+  Modal.confirm({
+    title: '申请售后',
+    content: `确定要为订单 ${delivery.orderId} 申请售后吗？`,
+    onOk: async () => {
+      try {
+        const response = await applyAfterSaleApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('申请售后成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '申请售后失败')
+        }
+      } catch (error) {
+        Message.error('申请售后失败')
+      }
+    }
+  })
+}
+
+// 完成售后
+const handleCompleteAfterSale = async (delivery) => {
+  Modal.confirm({
+    title: '完成售后',
+    content: `确定要完成订单 ${delivery.orderId} 的售后处理吗？`,
+    onOk: async () => {
+      try {
+        const response = await completeAfterSaleApi(delivery.orderId)
+        if (response.code === 200) {
+          Message.success('完成售后成功')
+          await loadDeliveries()
+        } else {
+          Message.error(response.message || '完成售后失败')
+        }
+      } catch (error) {
+        Message.error('完成售后失败')
+      }
+    }
+  })
 }
 
 // 删除配送
