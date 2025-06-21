@@ -14,9 +14,13 @@
         <a-form-item label="订单状态">
           <a-select v-model="searchForm.orderStatus" placeholder="选择订单状态" allow-clear>
             <a-option value="">全部状态</a-option>
-            <a-option v-for="(text, status) in ORDER_STATUS_TEXT" :key="status" :value="status">
-              {{ text }}
-            </a-option>
+            <a-option value="PAYING">待付款</a-option>
+            <a-option value="SHIPPING">待发货</a-option>
+            <a-option value="RECEIPTING">待收货</a-option>
+            <a-option value="COMPLETED">已完成</a-option>
+            <a-option value="CANCELLED">已取消</a-option>
+            <a-option value="PROCESSING">售后处理中</a-option>
+            <a-option value="PROCESSED">售后处理完成</a-option>
           </a-select>
         </a-form-item>
         <a-form-item label="客户ID">
@@ -76,15 +80,20 @@
         row-key="orderId"
       >
         <template #columns>
+          <a-table-column title="订单ID" data-index="orderId" :width="60">
+            <template #cell="{ record }">
+              {{ record.orderId || '-' }}
+            </template>
+          </a-table-column>
           <a-table-column title="订单号" data-index="orderNo" :width="150">
             <template #cell="{ record }">
               <a-link @click="showDetail(record)">{{ record.orderNo }}</a-link>
             </template>
           </a-table-column>
-          <a-table-column title="订单状态" data-index="orderStatus" :width="120">
+          <a-table-column title="订单状态" data-index="deliveryStatus" :width="120">
             <template #cell="{ record }">
-              <a-tag :color="ORDER_STATUS_COLOR[record.orderStatus]">
-                {{ ORDER_STATUS_TEXT[record.orderStatus] || record.orderStatus }}
+              <a-tag :color="getDeliveryStatusColor(record.deliveryStatus)">
+                {{ getDeliveryStatusText(record.deliveryStatus) }}
               </a-tag>
             </template>
           </a-table-column>
@@ -96,13 +105,6 @@
           <a-table-column title="订单金额" data-index="totalAmount" :width="120">
             <template #cell="{ record }">
               <span class="amount-text">¥{{ record.totalAmount?.toFixed(2) || '0.00' }}</span>
-            </template>
-          </a-table-column>
-          <a-table-column title="商品信息" data-index="products" :width="200">
-            <template #cell="{ record }">
-              <a-tooltip :content="record.products" :disabled="!record.products">
-                <span class="products-text">{{ record.products || '-' }}</span>
-              </a-tooltip>
             </template>
           </a-table-column>
           <a-table-column title="客户ID" data-index="customerName" :width="150">
@@ -292,8 +294,8 @@
         <a-descriptions :column="2" bordered>
           <a-descriptions-item label="订单号">{{ currentOrder.orderNo }}</a-descriptions-item>
           <a-descriptions-item label="订单状态"> 
-            <a-tag :color="ORDER_STATUS_COLOR[currentOrder.orderStatus] || 'blue'"> 
-              {{ ORDER_STATUS_TEXT[currentOrder.status] || currentOrder.status || '未知状态' }} 
+            <a-tag :color="getDeliveryStatusColor(deliveryInfo?.status)"> 
+              {{ getDeliveryStatusText(deliveryInfo?.status) }} 
             </a-tag> 
           </a-descriptions-item>
           <a-descriptions-item label="下单时间">{{ formatDateTime(currentOrder.createTime) }}</a-descriptions-item>
@@ -320,32 +322,50 @@
           <template #columns>
             <a-table-column title="商品名称" data-index="productName" />
             <a-table-column title="数量" data-index="quantity" :width="80" />
-            <a-table-column title="单价" data-index="price" :width="100">
+            <a-table-column title="单价" data-index="unitPrice" :width="100">
               <template #cell="{ record }">
-                ¥{{ record.price?.toFixed(2) || '0.00' }}
+                ¥{{ record.unitPrice?.toFixed(2) || '0.00' }}
               </template>
             </a-table-column>
-            <a-table-column title="小计" data-index="subtotal" :width="100">
+            <a-table-column title="小计" data-index="itemAmount" :width="100">
               <template #cell="{ record }">
-                ¥{{ record.subtotal?.toFixed(2) || '0.00' }}
+                ¥{{ record.itemAmount?.toFixed(2) || '0.00' }}
               </template>
             </a-table-column>
           </template>
         </a-table>
 
         <a-divider>配送信息</a-divider>
-        <a-descriptions :column="1" bordered v-if="deliveryInfo">
-          <a-descriptions-item label="收货人">{{ deliveryInfo.consigneeName }}</a-descriptions-item>
-          <a-descriptions-item label="联系电话">{{ deliveryInfo.consigneePhone }}</a-descriptions-item>
-          <a-descriptions-item label="配送地址">{{ deliveryInfo.deliveryAddress }}</a-descriptions-item>
-          <a-descriptions-item label="配送状态">{{ deliveryInfo.deliveryStatus }}</a-descriptions-item>
-          <a-descriptions-item label="快递单号" v-if="deliveryInfo.trackingNumber">
-            {{ deliveryInfo.trackingNumber }}
-          </a-descriptions-item>
-          <a-descriptions-item label="预计送达时间" v-if="deliveryInfo.estimatedDeliveryTime">
-            {{ formatDateTime(deliveryInfo.estimatedDeliveryTime) }}
-          </a-descriptions-item>
-        </a-descriptions>
+        <div v-if="deliveryInfo">
+          <a-descriptions :column="1" bordered>
+            <a-descriptions-item label="收货人">{{ deliveryInfo.consigneeName || '暂无' }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ deliveryInfo.consigneePhone || '暂无' }}</a-descriptions-item>
+            <a-descriptions-item label="配送地址">{{ deliveryInfo.deliveryAddress || '暂无' }}</a-descriptions-item>
+            <a-descriptions-item label="配送状态">
+              <a-tag :color="getDeliveryStatusColor(deliveryInfo.status)">
+                {{ getDeliveryStatusText(deliveryInfo.status) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="快递单号" v-if="deliveryInfo.trackingNo">
+              {{ deliveryInfo.trackingNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="承运商" v-if="deliveryInfo.shipper">
+              {{ deliveryInfo.shipper }}
+            </a-descriptions-item>
+            <a-descriptions-item label="发货时间" v-if="deliveryInfo.shipTime">
+              {{ formatDateTime(deliveryInfo.shipTime) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="送达时间" v-if="deliveryInfo.deliveryTime">
+              {{ formatDateTime(deliveryInfo.deliveryTime) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预计送达时间" v-if="deliveryInfo.estimatedDeliveryTime">
+              {{ formatDateTime(deliveryInfo.estimatedDeliveryTime) }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </div>
+        <div v-else>
+          <a-empty description="暂无配送信息" />
+        </div>
       </div>
     </a-drawer>
 
@@ -381,15 +401,19 @@
     >
       <a-form :model="statusForm" ref="statusFormRef">
         <a-form-item label="当前状态">
-          <a-tag :color="ORDER_STATUS_COLOR[statusForm.currentStatus]">
-            {{ ORDER_STATUS_TEXT[statusForm.currentStatus] || statusForm.currentStatus }}
+          <a-tag :color="getDeliveryStatusColor(statusForm.currentStatus)">
+            {{ getDeliveryStatusText(statusForm.currentStatus) }}
           </a-tag>
         </a-form-item>
         <a-form-item label="新状态" field="newStatus" required>
           <a-select v-model="statusForm.newStatus" placeholder="选择新状态">
-            <a-option v-for="(text, status) in ORDER_STATUS_TEXT" :key="status" :value="status">
-              {{ text }}
-            </a-option>
+            <a-option value="PAYING">待付款</a-option>
+            <a-option value="SHIPPING">待发货</a-option>
+            <a-option value="RECEIPTING">待收货</a-option>
+            <a-option value="COMPLETED">已完成</a-option>
+            <a-option value="CANCELLED">已取消</a-option>
+            <a-option value="PROCESSING">售后处理中</a-option>
+            <a-option value="PROCESSED">售后处理完成</a-option>
           </a-select>
         </a-form-item>
       </a-form>
@@ -545,7 +569,26 @@ const loadOrders = async () => {
       // 处理嵌套的PageResult数据结构
       const pageData = response.data.data || response.data
       
-      orders.value = pageData.list || pageData.records || []
+      const orderList = pageData.list || pageData.records || []
+      
+      // 为每个订单加载配送状态
+      const ordersWithDeliveryStatus = await Promise.all(
+        orderList.map(async (order) => {
+          try {
+            const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
+            if (deliveryResponse.code === 200 && deliveryResponse.data) {
+              order.deliveryStatus = deliveryResponse.data.status
+            } else {
+              order.deliveryStatus = 'PENDING' // 默认状态：待配送
+            }
+          } catch (error) {
+            order.deliveryStatus = 'PENDING' // 异常时设置默认状态
+          }
+          return order
+        })
+      )
+      
+      orders.value = ordersWithDeliveryStatus
       pagination.total = pageData.total || 0
     } else {
       Message.error(response.message || '获取订单列表失败')
@@ -756,24 +799,6 @@ const showDetail = async (order) => {
     if (detailResponse.code === 200) {
       currentOrder.value = detailResponse.data
       
-      // 订单状态值转换处理
-      if (currentOrder.value.orderStatus) {
-        // 如果是数字，转换为对应的状态常量
-        if (typeof currentOrder.value.orderStatus === 'number') {
-          const statusKey = Object.keys(ORDER_STATUS).find(key => ORDER_STATUS[key] === currentOrder.value.orderStatus)
-          if (statusKey) {
-            currentOrder.value.orderStatus = statusKey
-          }
-        }
-        // 如果是字符串但不在常量中，尝试转换为大写
-        else if (typeof currentOrder.value.orderStatus === 'string' && !ORDER_STATUS_TEXT[currentOrder.value.orderStatus]) {
-          const upperStatus = currentOrder.value.orderStatus.toUpperCase()
-          if (ORDER_STATUS_TEXT[upperStatus]) {
-            currentOrder.value.orderStatus = upperStatus
-          }
-        }
-      }
-      
       // 如果没有客户信息，尝试通过customerId获取
       if (!currentOrder.value.customerInfo && currentOrder.value.customerId) {
         try {
@@ -805,12 +830,20 @@ const showDetail = async (order) => {
     }
     
     // 加载配送信息
-    const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
-    
-    if (deliveryResponse.code === 200) {
-      deliveryInfo.value = deliveryResponse.data
-    } else {
-      Message.error(deliveryResponse.message || '获取订单配送信息失败')
+    try {
+      const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
+      
+      if (deliveryResponse.code === 200) {
+        deliveryInfo.value = deliveryResponse.data
+      } else {
+        // 如果获取配送信息失败，设置为null以显示"暂无配送信息"
+        deliveryInfo.value = null
+        console.warn('获取订单配送信息失败:', deliveryResponse.message)
+      }
+    } catch (error) {
+      // 网络错误或其他异常，设置为null
+      deliveryInfo.value = null
+      console.warn('获取订单配送信息异常:', error.message)
     }
   } catch (error) {
     Message.error(`加载订单详情失败: ${error.message || '未知错误'}`)
@@ -851,7 +884,7 @@ const handleStatusAction = async (order, action) => {
         return
       case 'updateStatus':
         statusForm.orderId = order.orderId
-        statusForm.currentStatus = order.orderStatus
+        statusForm.currentStatus = order.deliveryStatus
         statusForm.newStatus = ''
         statusModalVisible.value = true
         return
@@ -939,6 +972,48 @@ const handleExport = async () => {
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString('zh-CN')
+}
+
+// 获取配送状态文本
+const getDeliveryStatusText = (status) => {
+  if (!status) return '未知状态'
+  
+  // 配送状态映射（匹配后端DeliveryStatus枚举）
+  const DELIVERY_STATUS_TEXT = {
+    'PAYING': '待付款',
+    'SHIPPING': '待发货',
+    'RECEIPTING': '待收货',
+    'COMPLETED': '已完成',
+    'CANCELLED': '已取消',
+    'PROCESSING': '售后处理中',
+    'PROCESSED': '售后处理完成',
+    // 兼容订单状态
+    'CREATED': '待支付',
+    'PAID': '已支付'
+  }
+  
+  return DELIVERY_STATUS_TEXT[status] || ORDER_STATUS_TEXT[status] || status
+}
+
+// 获取配送状态颜色
+const getDeliveryStatusColor = (status) => {
+  if (!status) return 'gray'
+  
+  // 配送状态颜色映射（匹配后端DeliveryStatus枚举）
+  const DELIVERY_STATUS_COLOR = {
+    'PAYING': 'orange',
+    'SHIPPING': 'blue',
+    'RECEIPTING': 'cyan',
+    'COMPLETED': 'green',
+    'CANCELLED': 'red',
+    'PROCESSING': 'purple',
+    'PROCESSED': 'green',
+    // 兼容订单状态
+    'CREATED': 'orange',
+    'PAID': 'blue'
+  }
+  
+  return DELIVERY_STATUS_COLOR[status] || ORDER_STATUS_COLOR[status] || 'gray'
 }
 
 // 生命周期
