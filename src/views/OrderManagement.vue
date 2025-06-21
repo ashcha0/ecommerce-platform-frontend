@@ -14,9 +14,13 @@
         <a-form-item label="订单状态">
           <a-select v-model="searchForm.orderStatus" placeholder="选择订单状态" allow-clear>
             <a-option value="">全部状态</a-option>
-            <a-option v-for="(text, status) in ORDER_STATUS_TEXT" :key="status" :value="status">
-              {{ text }}
-            </a-option>
+            <a-option value="PAYING">待付款</a-option>
+            <a-option value="SHIPPING">待发货</a-option>
+            <a-option value="RECEIPTING">待收货</a-option>
+            <a-option value="COMPLETED">已完成</a-option>
+            <a-option value="CANCELLED">已取消</a-option>
+            <a-option value="PROCESSING">售后处理中</a-option>
+            <a-option value="PROCESSED">售后处理完成</a-option>
           </a-select>
         </a-form-item>
         <a-form-item label="客户ID">
@@ -86,10 +90,10 @@
               <a-link @click="showDetail(record)">{{ record.orderNo }}</a-link>
             </template>
           </a-table-column>
-          <a-table-column title="订单状态" data-index="orderStatus" :width="120">
+          <a-table-column title="订单状态" data-index="deliveryStatus" :width="120">
             <template #cell="{ record }">
-              <a-tag :color="ORDER_STATUS_COLOR[record.orderStatus]">
-                {{ ORDER_STATUS_TEXT[record.orderStatus] || record.orderStatus }}
+              <a-tag :color="getDeliveryStatusColor(record.deliveryStatus)">
+                {{ getDeliveryStatusText(record.deliveryStatus) }}
               </a-tag>
             </template>
           </a-table-column>
@@ -290,8 +294,8 @@
         <a-descriptions :column="2" bordered>
           <a-descriptions-item label="订单号">{{ currentOrder.orderNo }}</a-descriptions-item>
           <a-descriptions-item label="订单状态"> 
-            <a-tag :color="ORDER_STATUS_COLOR[currentOrder.orderStatus] || 'blue'"> 
-              {{ ORDER_STATUS_TEXT[currentOrder.orderStatus] || currentOrder.orderStatus || '未知状态' }} 
+            <a-tag :color="getDeliveryStatusColor(deliveryInfo?.status)"> 
+              {{ getDeliveryStatusText(deliveryInfo?.status) }} 
             </a-tag> 
           </a-descriptions-item>
           <a-descriptions-item label="下单时间">{{ formatDateTime(currentOrder.createTime) }}</a-descriptions-item>
@@ -397,15 +401,19 @@
     >
       <a-form :model="statusForm" ref="statusFormRef">
         <a-form-item label="当前状态">
-          <a-tag :color="ORDER_STATUS_COLOR[statusForm.currentStatus]">
-            {{ ORDER_STATUS_TEXT[statusForm.currentStatus] || statusForm.currentStatus }}
+          <a-tag :color="getDeliveryStatusColor(statusForm.currentStatus)">
+            {{ getDeliveryStatusText(statusForm.currentStatus) }}
           </a-tag>
         </a-form-item>
         <a-form-item label="新状态" field="newStatus" required>
           <a-select v-model="statusForm.newStatus" placeholder="选择新状态">
-            <a-option v-for="(text, status) in ORDER_STATUS_TEXT" :key="status" :value="status">
-              {{ text }}
-            </a-option>
+            <a-option value="PAYING">待付款</a-option>
+            <a-option value="SHIPPING">待发货</a-option>
+            <a-option value="RECEIPTING">待收货</a-option>
+            <a-option value="COMPLETED">已完成</a-option>
+            <a-option value="CANCELLED">已取消</a-option>
+            <a-option value="PROCESSING">售后处理中</a-option>
+            <a-option value="PROCESSED">售后处理完成</a-option>
           </a-select>
         </a-form-item>
       </a-form>
@@ -561,7 +569,26 @@ const loadOrders = async () => {
       // 处理嵌套的PageResult数据结构
       const pageData = response.data.data || response.data
       
-      orders.value = pageData.list || pageData.records || []
+      const orderList = pageData.list || pageData.records || []
+      
+      // 为每个订单加载配送状态
+      const ordersWithDeliveryStatus = await Promise.all(
+        orderList.map(async (order) => {
+          try {
+            const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
+            if (deliveryResponse.code === 200 && deliveryResponse.data) {
+              order.deliveryStatus = deliveryResponse.data.status
+            } else {
+              order.deliveryStatus = 'PENDING' // 默认状态：待配送
+            }
+          } catch (error) {
+            order.deliveryStatus = 'PENDING' // 异常时设置默认状态
+          }
+          return order
+        })
+      )
+      
+      orders.value = ordersWithDeliveryStatus
       pagination.total = pageData.total || 0
     } else {
       Message.error(response.message || '获取订单列表失败')
@@ -772,29 +799,6 @@ const showDetail = async (order) => {
     if (detailResponse.code === 200) {
       currentOrder.value = detailResponse.data
       
-      // 将后端返回的status字段映射到orderStatus字段，保持前端一致性
-      if (currentOrder.value.status) {
-        currentOrder.value.orderStatus = currentOrder.value.status
-      }
-      
-      // 订单状态值转换处理
-      if (currentOrder.value.orderStatus) {
-        // 如果是数字，转换为对应的状态常量
-        if (typeof currentOrder.value.orderStatus === 'number') {
-          const statusKey = Object.keys(ORDER_STATUS).find(key => ORDER_STATUS[key] === currentOrder.value.orderStatus)
-          if (statusKey) {
-            currentOrder.value.orderStatus = statusKey
-          }
-        }
-        // 如果是字符串但不在常量中，尝试转换为大写
-        else if (typeof currentOrder.value.orderStatus === 'string' && !ORDER_STATUS_TEXT[currentOrder.value.orderStatus]) {
-          const upperStatus = currentOrder.value.orderStatus.toUpperCase()
-          if (ORDER_STATUS_TEXT[upperStatus]) {
-            currentOrder.value.orderStatus = upperStatus
-          }
-        }
-      }
-      
       // 如果没有客户信息，尝试通过customerId获取
       if (!currentOrder.value.customerInfo && currentOrder.value.customerId) {
         try {
@@ -880,7 +884,7 @@ const handleStatusAction = async (order, action) => {
         return
       case 'updateStatus':
         statusForm.orderId = order.orderId
-        statusForm.currentStatus = order.orderStatus
+        statusForm.currentStatus = order.deliveryStatus
         statusForm.newStatus = ''
         statusModalVisible.value = true
         return
