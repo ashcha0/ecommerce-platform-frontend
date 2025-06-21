@@ -322,14 +322,14 @@
           <template #columns>
             <a-table-column title="商品名称" data-index="productName" />
             <a-table-column title="数量" data-index="quantity" :width="80" />
-            <a-table-column title="单价" data-index="price" :width="100">
+            <a-table-column title="单价" data-index="unitPrice" :width="100">
               <template #cell="{ record }">
-                ¥{{ record.price?.toFixed(2) || '0.00' }}
+                ¥{{ record.unitPrice?.toFixed(2) || '0.00' }}
               </template>
             </a-table-column>
-            <a-table-column title="小计" data-index="subtotal" :width="100">
+            <a-table-column title="小计" data-index="itemAmount" :width="100">
               <template #cell="{ record }">
-                ¥{{ record.subtotal?.toFixed(2) || '0.00' }}
+                ¥{{ record.itemAmount?.toFixed(2) || '0.00' }}
               </template>
             </a-table-column>
           </template>
