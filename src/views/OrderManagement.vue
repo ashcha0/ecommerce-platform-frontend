@@ -127,35 +127,7 @@
                 <a-button size="small" @click="showDetail(record)">
                   详情
                 </a-button>
-                <a-dropdown @select="(value) => handleStatusAction(record, value)">
-                  <a-button size="small" type="outline">
-                    状态操作
-                    <icon-down />
-                  </a-button>
-                  <template #content>
-                    <a-doption 
-                      v-if="record.orderStatus === 'PENDING_PAYMENT'" 
-                      value="pay"
-                    >
-                      支付订单
-                    </a-doption>
-                    <a-doption 
-                      v-if="record.orderStatus === 'DELIVERED'" 
-                      value="confirm"
-                    >
-                      确认收货
-                    </a-doption>
-                    <a-doption 
-                      v-if="['CREATED', 'PAID', 'SHIPPING','DELIVERED'].includes(record.orderStatus)" 
-                      value="cancel"
-                    >
-                      取消订单
-                    </a-doption>
-                    <a-doption value="updateStatus">
-                      更新状态
-                    </a-doption>
-                  </template>
-                </a-dropdown>
+
               </a-space>
             </template>
           </a-table-column>
@@ -282,7 +254,6 @@
       </a-form>
     </a-modal>
 
-    <!-- TODO: 订单金额小计 -->
     <!-- 订单详情抽屉 -->
     <a-drawer 
       v-model:visible="detailDrawerVisible" 
@@ -429,8 +400,7 @@ import {
   IconRefresh,
   IconPlus,
   IconDownload,
-  IconBarChart,
-  IconDown
+  IconBarChart
 } from '@arco-design/web-vue/es/icon'
 import {
   searchOrdersApi,
@@ -852,54 +822,7 @@ const showDetail = async (order) => {
   }
 }
 
-const handleStatusAction = async (order, action) => {
-  try {
-    let response
-    switch (action) {
-      case 'pay':
-        response = await payOrderApi(order.orderId)
-        break
-      case 'confirm':
-        response = await confirmOrderApi(order.orderId)
-        break
-      case 'cancel':
-        Modal.confirm({
-          title: '确认取消订单？',
-          content: '取消后订单无法恢复，确定要取消吗？',
-          onOk: async () => {
-            try {
-              const cancelResponse = await cancelOrderApi(order.orderId)
-              
-              if (cancelResponse.code === 200) {
-                Message.success('订单已取消')
-                loadOrders()
-              } else {
-                Message.error(cancelResponse.message || '取消订单失败')
-              }
-            } catch (error) {
-              Message.error(`取消订单失败: ${error.message || '未知错误'}`)
-            }
-          }
-        })
-        return
-      case 'updateStatus':
-        statusForm.orderId = order.orderId
-        statusForm.currentStatus = order.deliveryStatus
-        statusForm.newStatus = ''
-        statusModalVisible.value = true
-        return
-    }
-    
-    if (response && response.code === 200) {
-      Message.success('操作成功')
-      loadOrders()
-    } else if (response) {
-      Message.error(response.message || '操作失败')
-    }
-  } catch (error) {
-    Message.error(`操作失败: ${error.message || '未知错误'}`)
-  }
-}
+
 
 const handleUpdateStatus = async () => {
   try {
