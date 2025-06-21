@@ -78,8 +78,8 @@
         :data="productList" 
         :loading="loading"
         :pagination="pagination"
-        @page-change="handleCurrentChange"
-        @page-size-change="handleSizeChange"
+        @page-change="handlePageChange"
+        @page-size-change="handlePageSizeChange"
         row-key="id"
       >
         <template #columns>
@@ -322,9 +322,11 @@ export default {
 
     // 分页数据
     const pagination = reactive({
-      pageNum: 1,
+      current: 1,
       pageSize: 10,
-      total: 0
+      total: 0,
+      showTotal: true,
+      showPageSize: true
     })
 
     // 商品表单
@@ -369,7 +371,7 @@ export default {
       try {
         loading.value = true
         const params = {
-          pageNum: pagination.pageNum,
+          pageNum: pagination.current,
           pageSize: pagination.pageSize
         }
         const response = await getProducts(params)
@@ -391,7 +393,7 @@ export default {
         loading.value = true
         const params = {
           ...searchForm,
-          pageNum: pagination.pageNum,
+          pageNum: pagination.current,
           pageSize: pagination.pageSize
         }
         // 清理空值（保留布尔值false）
@@ -419,7 +421,7 @@ export default {
       Object.keys(searchForm).forEach(key => {
         searchForm[key] = ''
       })
-      pagination.pageNum = 1
+      pagination.current = 1
       getProductList()
     }
 
@@ -574,9 +576,9 @@ export default {
       dialogVisible.value = false
     }
 
-    const handleSizeChange = (size) => {
-      pagination.pageSize = size
-      pagination.pageNum = 1
+    const handlePageSizeChange = (pageSize) => {
+      pagination.pageSize = pageSize
+      pagination.current = 1
       if (hasSearchConditions()) {
         searchProducts()
       } else {
@@ -584,8 +586,8 @@ export default {
       }
     }
 
-    const handleCurrentChange = (page) => {
-      pagination.pageNum = page
+    const handlePageChange = (page) => {
+      pagination.current = page
       if (hasSearchConditions()) {
         searchProducts()
       } else {
@@ -639,8 +641,8 @@ export default {
       submitForm,
       resetForm,
       handleDialogClose,
-      handleSizeChange,
-      handleCurrentChange,
+      handlePageSizeChange,
+      handlePageChange,
       formatDateTime
     }
   }
