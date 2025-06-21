@@ -394,7 +394,7 @@ export default {
           pageNum: pagination.pageNum,
           pageSize: pagination.pageSize
         }
-        // 清理空值
+        // 清理空值（保留布尔值false）
         Object.keys(params).forEach(key => {
           if (params[key] === '' || params[key] === null || params[key] === undefined) {
             delete params[key]
