@@ -76,6 +76,11 @@
         row-key="orderId"
       >
         <template #columns>
+          <a-table-column title="订单ID" data-index="orderId" :width="60">
+            <template #cell="{ record }">
+              {{ record.orderId || '-' }}
+            </template>
+          </a-table-column>
           <a-table-column title="订单号" data-index="orderNo" :width="150">
             <template #cell="{ record }">
               <a-link @click="showDetail(record)">{{ record.orderNo }}</a-link>
@@ -96,13 +101,6 @@
           <a-table-column title="订单金额" data-index="totalAmount" :width="120">
             <template #cell="{ record }">
               <span class="amount-text">¥{{ record.totalAmount?.toFixed(2) || '0.00' }}</span>
-            </template>
-          </a-table-column>
-          <a-table-column title="商品信息" data-index="products" :width="200">
-            <template #cell="{ record }">
-              <a-tooltip :content="record.products" :disabled="!record.products">
-                <span class="products-text">{{ record.products || '-' }}</span>
-              </a-tooltip>
             </template>
           </a-table-column>
           <a-table-column title="客户ID" data-index="customerName" :width="150">
@@ -293,7 +291,7 @@
           <a-descriptions-item label="订单号">{{ currentOrder.orderNo }}</a-descriptions-item>
           <a-descriptions-item label="订单状态"> 
             <a-tag :color="ORDER_STATUS_COLOR[currentOrder.orderStatus] || 'blue'"> 
-              {{ ORDER_STATUS_TEXT[currentOrder.status] || currentOrder.status || '未知状态' }} 
+              {{ ORDER_STATUS_TEXT[currentOrder.orderStatus] || currentOrder.orderStatus || '未知状态' }} 
             </a-tag> 
           </a-descriptions-item>
           <a-descriptions-item label="下单时间">{{ formatDateTime(currentOrder.createTime) }}</a-descriptions-item>
@@ -773,6 +771,11 @@ const showDetail = async (order) => {
     
     if (detailResponse.code === 200) {
       currentOrder.value = detailResponse.data
+      
+      // 将后端返回的status字段映射到orderStatus字段，保持前端一致性
+      if (currentOrder.value.status) {
+        currentOrder.value.orderStatus = currentOrder.value.status
+      }
       
       // 订单状态值转换处理
       if (currentOrder.value.orderStatus) {
