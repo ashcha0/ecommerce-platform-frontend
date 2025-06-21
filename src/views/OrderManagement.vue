@@ -334,18 +334,36 @@
         </a-table>
 
         <a-divider>配送信息</a-divider>
-        <a-descriptions :column="1" bordered v-if="deliveryInfo">
-          <a-descriptions-item label="收货人">{{ deliveryInfo.consigneeName }}</a-descriptions-item>
-          <a-descriptions-item label="联系电话">{{ deliveryInfo.consigneePhone }}</a-descriptions-item>
-          <a-descriptions-item label="配送地址">{{ deliveryInfo.deliveryAddress }}</a-descriptions-item>
-          <a-descriptions-item label="配送状态">{{ deliveryInfo.deliveryStatus }}</a-descriptions-item>
-          <a-descriptions-item label="快递单号" v-if="deliveryInfo.trackingNumber">
-            {{ deliveryInfo.trackingNumber }}
-          </a-descriptions-item>
-          <a-descriptions-item label="预计送达时间" v-if="deliveryInfo.estimatedDeliveryTime">
-            {{ formatDateTime(deliveryInfo.estimatedDeliveryTime) }}
-          </a-descriptions-item>
-        </a-descriptions>
+        <div v-if="deliveryInfo">
+          <a-descriptions :column="1" bordered>
+            <a-descriptions-item label="收货人">{{ deliveryInfo.consigneeName || '暂无' }}</a-descriptions-item>
+            <a-descriptions-item label="联系电话">{{ deliveryInfo.consigneePhone || '暂无' }}</a-descriptions-item>
+            <a-descriptions-item label="配送地址">{{ deliveryInfo.deliveryAddress || '暂无' }}</a-descriptions-item>
+            <a-descriptions-item label="配送状态">
+              <a-tag :color="getDeliveryStatusColor(deliveryInfo.status)">
+                {{ getDeliveryStatusText(deliveryInfo.status) }}
+              </a-tag>
+            </a-descriptions-item>
+            <a-descriptions-item label="快递单号" v-if="deliveryInfo.trackingNo">
+              {{ deliveryInfo.trackingNo }}
+            </a-descriptions-item>
+            <a-descriptions-item label="承运商" v-if="deliveryInfo.shipper">
+              {{ deliveryInfo.shipper }}
+            </a-descriptions-item>
+            <a-descriptions-item label="发货时间" v-if="deliveryInfo.shipTime">
+              {{ formatDateTime(deliveryInfo.shipTime) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="送达时间" v-if="deliveryInfo.deliveryTime">
+              {{ formatDateTime(deliveryInfo.deliveryTime) }}
+            </a-descriptions-item>
+            <a-descriptions-item label="预计送达时间" v-if="deliveryInfo.estimatedDeliveryTime">
+              {{ formatDateTime(deliveryInfo.estimatedDeliveryTime) }}
+            </a-descriptions-item>
+          </a-descriptions>
+        </div>
+        <div v-else>
+          <a-empty description="暂无配送信息" />
+        </div>
       </div>
     </a-drawer>
 
@@ -805,12 +823,20 @@ const showDetail = async (order) => {
     }
     
     // 加载配送信息
-    const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
-    
-    if (deliveryResponse.code === 200) {
-      deliveryInfo.value = deliveryResponse.data
-    } else {
-      Message.error(deliveryResponse.message || '获取订单配送信息失败')
+    try {
+      const deliveryResponse = await getOrderDeliveryInfoApi(order.orderId)
+      
+      if (deliveryResponse.code === 200) {
+        deliveryInfo.value = deliveryResponse.data
+      } else {
+        // 如果获取配送信息失败，设置为null以显示"暂无配送信息"
+        deliveryInfo.value = null
+        console.warn('获取订单配送信息失败:', deliveryResponse.message)
+      }
+    } catch (error) {
+      // 网络错误或其他异常，设置为null
+      deliveryInfo.value = null
+      console.warn('获取订单配送信息异常:', error.message)
     }
   } catch (error) {
     Message.error(`加载订单详情失败: ${error.message || '未知错误'}`)
@@ -939,6 +965,48 @@ const handleExport = async () => {
 const formatDateTime = (dateTime) => {
   if (!dateTime) return '-'
   return new Date(dateTime).toLocaleString('zh-CN')
+}
+
+// 获取配送状态文本
+const getDeliveryStatusText = (status) => {
+  if (!status) return '未知状态'
+  
+  // 配送状态映射（匹配后端DeliveryStatus枚举）
+  const DELIVERY_STATUS_TEXT = {
+    'PAYING': '待付款',
+    'SHIPPING': '待发货',
+    'RECEIPTING': '待收货',
+    'COMPLETED': '已完成',
+    'CANCELLED': '已取消',
+    'PROCESSING': '售后处理中',
+    'PROCESSED': '售后处理完成',
+    // 兼容订单状态
+    'CREATED': '待支付',
+    'PAID': '已支付'
+  }
+  
+  return DELIVERY_STATUS_TEXT[status] || ORDER_STATUS_TEXT[status] || status
+}
+
+// 获取配送状态颜色
+const getDeliveryStatusColor = (status) => {
+  if (!status) return 'gray'
+  
+  // 配送状态颜色映射（匹配后端DeliveryStatus枚举）
+  const DELIVERY_STATUS_COLOR = {
+    'PAYING': 'orange',
+    'SHIPPING': 'blue',
+    'RECEIPTING': 'cyan',
+    'COMPLETED': 'green',
+    'CANCELLED': 'red',
+    'PROCESSING': 'purple',
+    'PROCESSED': 'green',
+    // 兼容订单状态
+    'CREATED': 'orange',
+    'PAID': 'blue'
+  }
+  
+  return DELIVERY_STATUS_COLOR[status] || ORDER_STATUS_COLOR[status] || 'gray'
 }
 
 // 生命周期
