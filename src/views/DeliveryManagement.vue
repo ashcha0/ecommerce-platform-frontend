@@ -432,12 +432,7 @@
             <span v-if="currentDelivery.deliveryTime">{{ formatDateTime(currentDelivery.deliveryTime) }}</span>
             <span v-else class="text-gray">-</span>
           </a-descriptions-item>
-          <a-descriptions-item label="确认时间">
-            <span v-if="currentDelivery.confirmTime">{{ formatDateTime(currentDelivery.confirmTime) }}</span>
-            <span v-else class="text-gray">-</span>
-          </a-descriptions-item>
           <a-descriptions-item label="创建时间">{{ formatDateTime(currentDelivery.createTime) }}</a-descriptions-item>
-          <a-descriptions-item label="更新时间">{{ formatDateTime(currentDelivery.updateTime) }}</a-descriptions-item>
         </a-descriptions>
       </div>
     </a-drawer>
