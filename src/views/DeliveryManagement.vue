@@ -403,6 +403,18 @@
             <span v-if="currentDelivery.shipper">{{ currentDelivery.shipper }}</span>
             <span v-else class="text-gray">-</span>
           </a-descriptions-item>
+          <a-descriptions-item label="收货人姓名">
+            <span v-if="currentDelivery.consigneeName">{{ currentDelivery.consigneeName }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="收货人电话">
+            <span v-if="currentDelivery.consigneePhone">{{ currentDelivery.consigneePhone }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
+          <a-descriptions-item label="配送地址">
+            <span v-if="currentDelivery.deliveryAddress">{{ currentDelivery.deliveryAddress }}</span>
+            <span v-else class="text-gray">-</span>
+          </a-descriptions-item>
           <a-descriptions-item label="配送状态">
             <a-tag :color="DELIVERY_STATUS_COLOR[currentDelivery.status]">
               {{ DELIVERY_STATUS_TEXT[currentDelivery.status] || currentDelivery.status }}
