@@ -9,12 +9,23 @@
     <a-card class="search-card" title="订单搜索">
       <a-form :model="searchForm" layout="inline" class="search-form">
         <a-form-item label="商品名称">
-          <a-input
+          <a-auto-complete
             v-model="searchForm.name"
+            :data="searchHistory"
             placeholder="请输入商品名称"
-            clearable
+            allow-clear
             style="width: 200px"
-          />
+            @select="onSearchHistorySelect"
+            @search="onSearchInput"
+          >
+            <template #option="{ data }">
+              <div class="search-history-item">
+                <icon-clock-circle style="color: #86909c;" />
+                {{ data.value }}
+                <div class="search-time">{{ formatSearchTime(data.time) }}</div>
+              </div>
+            </template>
+          </a-auto-complete>
         </a-form-item>
         <a-form-item label="店铺ID">
           <a-input
@@ -69,6 +80,10 @@
         <a-button type="primary" @click="showAddDialog">
           <template #icon><icon-plus /></template>
           新增商品
+        </a-button>
+        <a-button @click="clearSearchCache" style="margin-left: 10px;">
+          <template #icon><icon-delete /></template>
+          清空缓存
         </a-button>
     </div>
 
@@ -309,6 +324,13 @@ export default {
     const isEdit = ref(false)
     const currentProduct = ref(null)
     const productFormRef = ref(null)
+    
+    // 搜索历史和缓存相关
+    const searchHistory = ref([])
+    const searchCache = ref(new Map())
+    const CACHE_KEY = 'product_search_history'
+    const CACHE_DATA_KEY = 'product_search_cache'
+    const MAX_HISTORY_SIZE = 10
 
     // 搜索表单
     const searchForm = reactive({
@@ -403,10 +425,38 @@ export default {
           }
         })
         
+        // 生成缓存键
+        const cacheKey = JSON.stringify(params)
+        
+        // 检查缓存
+        if (searchCache.value.has(cacheKey)) {
+          const cachedData = searchCache.value.get(cacheKey)
+          productList.value = cachedData.list
+          pagination.total = cachedData.total
+          Message.success('从缓存加载数据')
+          loading.value = false
+          return
+        }
+        
         const response = await searchProductsApi(params)
         if (response.code === 200) {
           productList.value = response.data.list
           pagination.total = response.data.total
+          
+          // 保存到缓存
+          searchCache.value.set(cacheKey, {
+            list: response.data.list,
+            total: response.data.total,
+            timestamp: Date.now()
+          })
+          
+          // 如果有商品名称搜索，保存到搜索历史
+          if (searchForm.name && searchForm.name.trim()) {
+            saveSearchHistory(searchForm.name.trim())
+          }
+          
+          // 保存缓存到本地存储
+          saveCacheToStorage()
         } else {
           Message.error(response.message || '搜索商品失败')
         }
@@ -612,8 +662,115 @@ export default {
       })
     }
 
+    // 搜索历史和缓存管理函数
+    const saveSearchHistory = (searchTerm) => {
+      // 移除重复项
+      const filtered = searchHistory.value.filter(item => item.value !== searchTerm)
+      // 添加新项到开头
+      filtered.unshift({
+        value: searchTerm,
+        time: Date.now()
+      })
+      // 限制历史记录数量
+      if (filtered.length > MAX_HISTORY_SIZE) {
+        filtered.splice(MAX_HISTORY_SIZE)
+      }
+      searchHistory.value = filtered
+      // 保存到本地存储
+      localStorage.setItem(CACHE_KEY, JSON.stringify(searchHistory.value))
+    }
+
+    const loadSearchHistory = () => {
+      try {
+        const stored = localStorage.getItem(CACHE_KEY)
+        if (stored) {
+          searchHistory.value = JSON.parse(stored)
+        }
+      } catch (error) {
+        console.error('加载搜索历史失败:', error)
+        searchHistory.value = []
+      }
+    }
+
+    const saveCacheToStorage = () => {
+      try {
+        const cacheData = Array.from(searchCache.value.entries())
+        localStorage.setItem(CACHE_DATA_KEY, JSON.stringify(cacheData))
+      } catch (error) {
+        console.error('保存缓存失败:', error)
+      }
+    }
+
+    const loadCacheFromStorage = () => {
+      try {
+        const stored = localStorage.getItem(CACHE_DATA_KEY)
+        if (stored) {
+          const cacheData = JSON.parse(stored)
+          searchCache.value = new Map(cacheData)
+          // 清理过期缓存（24小时）
+          cleanExpiredCache()
+        }
+      } catch (error) {
+        console.error('加载缓存失败:', error)
+        searchCache.value = new Map()
+      }
+    }
+
+    const cleanExpiredCache = () => {
+      const now = Date.now()
+      const expireTime = 24 * 60 * 60 * 1000 // 24小时
+      
+      for (const [key, value] of searchCache.value.entries()) {
+        if (now - value.timestamp > expireTime) {
+          searchCache.value.delete(key)
+        }
+      }
+      saveCacheToStorage()
+    }
+
+    const clearSearchCache = () => {
+      searchCache.value.clear()
+      localStorage.removeItem(CACHE_DATA_KEY)
+      Message.success('缓存已清空')
+    }
+
+    const onSearchHistorySelect = (value) => {
+      searchForm.name = value
+    }
+
+    const onSearchInput = (value) => {
+      // 过滤搜索历史
+      if (value) {
+        const filtered = searchHistory.value.filter(item => 
+          item.value.toLowerCase().includes(value.toLowerCase())
+        )
+        return filtered
+      }
+      return searchHistory.value
+    }
+
+    const formatSearchTime = (timestamp) => {
+      const now = Date.now()
+      const diff = now - timestamp
+      const minutes = Math.floor(diff / (1000 * 60))
+      const hours = Math.floor(diff / (1000 * 60 * 60))
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+      
+      if (days > 0) {
+        return `${days}天前`
+      } else if (hours > 0) {
+        return `${hours}小时前`
+      } else if (minutes > 0) {
+        return `${minutes}分钟前`
+      } else {
+        return '刚刚'
+      }
+    }
+
     // 生命周期
     onMounted(() => {
+      loadSearchHistory()
+      loadCacheFromStorage()
       getProductList()
     })
 
@@ -630,6 +787,7 @@ export default {
       productForm,
       productRules,
       dialogTitle,
+      searchHistory,
       getProductList,
       searchProducts,
       resetSearch,
@@ -643,7 +801,11 @@ export default {
       handleDialogClose,
       handlePageSizeChange,
       handlePageChange,
-      formatDateTime
+      formatDateTime,
+      onSearchHistorySelect,
+      onSearchInput,
+      formatSearchTime,
+      clearSearchCache
     }
   }
 }
@@ -734,6 +896,18 @@ export default {
 
 .dialog-footer {
   text-align: right;
+}
+
+.search-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.search-time {
+  font-size: 12px;
+  color: #86909c;
 }
 
 /* 响应式设计 */
