@@ -445,20 +445,69 @@
       :footer="false"
     >
       <div v-if="deliveryStats" class="stats-content">
-        <a-row :gutter="16">
+        <a-row :gutter="16" style="margin-bottom: 24px;">
           <a-col :span="6">
             <a-statistic title="总配送数" :value="deliveryStats.total" />
           </a-col>
           <a-col :span="6">
-            <a-statistic title="待发货" :value="deliveryStats.pending" />
+            <a-statistic title="待发货" :value="deliveryStats.pending" value-style="color: #faad14" />
           </a-col>
           <a-col :span="6">
-            <a-statistic title="已发货" :value="deliveryStats.shipped" />
+            <a-statistic title="已发货" :value="deliveryStats.shipped" value-style="color: #1890ff" />
           </a-col>
           <a-col :span="6">
-            <a-statistic title="已送达" :value="deliveryStats.delivered" />
+            <a-statistic title="已送达" :value="deliveryStats.delivered" value-style="color: #52c41a" />
           </a-col>
         </a-row>
+        
+        <a-row :gutter="16" style="margin-bottom: 24px;">
+          <a-col :span="6">
+            <a-statistic title="已取消" :value="deliveryStats.cancelled" value-style="color: #8c8c8c" />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic title="售后处理中" :value="deliveryStats.processing" value-style="color: #722ed1" />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic title="售后已完成" :value="deliveryStats.processed" value-style="color: #13c2c2" />
+          </a-col>
+          <a-col :span="6">
+            <a-statistic title="完成率" :value="deliveryStats.total > 0 ? ((deliveryStats.delivered / deliveryStats.total) * 100).toFixed(1) : 0" suffix="%" value-style="color: #52c41a" />
+          </a-col>
+        </a-row>
+        
+        <!-- 状态分布图表 -->
+        <div v-if="deliveryStats.statusDetail" style="margin-top: 24px;">
+          <h4 style="margin-bottom: 16px;">配送状态分布</h4>
+          <a-row :gutter="16">
+            <a-col :span="12">
+              <div class="status-chart">
+                <div v-for="(count, status) in deliveryStats.statusDetail" :key="status" class="status-item">
+                  <span class="status-label">{{ getStatusText(status) }}</span>
+                  <div class="status-bar">
+                    <div 
+                      class="status-progress" 
+                      :style="{ 
+                        width: deliveryStats.total > 0 ? (count / deliveryStats.total * 100) + '%' : '0%',
+                        backgroundColor: getStatusColor(status)
+                      }"
+                    ></div>
+                  </div>
+                  <span class="status-count">{{ count }}</span>
+                </div>
+              </div>
+            </a-col>
+            <a-col :span="12">
+              <div class="stats-summary">
+                <h5>统计摘要</h5>
+                <p><strong>总配送订单：</strong>{{ deliveryStats.total }}</p>
+                <p><strong>待处理订单：</strong>{{ deliveryStats.pending + deliveryStats.processing }}</p>
+                <p><strong>正常完成：</strong>{{ deliveryStats.delivered }}</p>
+                <p><strong>异常订单：</strong>{{ deliveryStats.cancelled + deliveryStats.processing + deliveryStats.processed }}</p>
+                <p><strong>配送效率：</strong>{{ deliveryStats.total > 0 ? ((deliveryStats.shipped + deliveryStats.delivered) / deliveryStats.total * 100).toFixed(1) : 0 }}%</p>
+              </div>
+            </a-col>
+          </a-row>
+        </div>
       </div>
     </a-modal>
 
@@ -1292,6 +1341,25 @@ const formatDateTime = (dateTime) => {
   })
 }
 
+// 获取状态文本
+const getStatusText = (status) => {
+  return DELIVERY_STATUS_TEXT[status] || status
+}
+
+// 获取状态颜色
+const getStatusColor = (status) => {
+  const colorMap = {
+    'PAYING': '#ff4d4f',
+    'SHIPPING': '#faad14',
+    'RECEIPTING': '#1890ff',
+    'COMPLETED': '#52c41a',
+    'CANCELLED': '#8c8c8c',
+    'PROCESSING': '#722ed1',
+    'PROCESSED': '#13c2c2'
+  }
+  return colorMap[status] || '#d9d9d9'
+}
+
 // 组件挂载时加载数据
 onMounted(() => {
   loadDeliveries()
@@ -1334,6 +1402,72 @@ onMounted(() => {
 .action-bar > div {
   display: flex;
   gap: 12px;
+}
+
+/* 配送统计样式 */
+.stats-content {
+  padding: 16px;
+}
+
+.status-chart {
+  background: #fafafa;
+  padding: 16px;
+  border-radius: 6px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+  gap: 12px;
+}
+
+.status-label {
+  width: 80px;
+  font-size: 12px;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.status-bar {
+  flex: 1;
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.status-progress {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.status-count {
+  width: 40px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 500;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.stats-summary {
+  background: #f6f8fa;
+  padding: 16px;
+  border-radius: 6px;
+}
+
+.stats-summary h5 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.stats-summary p {
+  margin: 8px 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
 }
 
 .amount-text {
