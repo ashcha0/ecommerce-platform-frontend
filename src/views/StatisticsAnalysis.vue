@@ -286,7 +286,11 @@ const getStatusColor = (status) => {
     'PAID': '#40a9ff', 
     'SHIPPING': '#36cfc9',
     'COMPLETED': '#73d13d',
-    'CANCELLED': '#ff4d4f'
+    'CANCELLED': '#ff4d4f',
+    'PAYING': '#fa8c16',        // 橙色 - 待支付
+    'RECEIPTING': '#1890ff',    // 蓝色 - 待收货
+    'PROCESSING': '#fadb14',    // 明黄色 - 售后处理中
+    'PROCESSED': '#52c41a'      // 绿色 - 售后处理完成
   }
   return colorMap[status] || ORDER_STATUS_COLOR[status] || '#1890ff'
 }
