@@ -276,10 +276,10 @@
     </a-modal>
 
     <!-- 批量更新模态框 -->
-    <a-modal 
-      v-model:visible="batchUpdateModalVisible" 
+    <a-modal
+      v-model:visible="batchUpdateModalVisible"
       title="批量更新库存"
-      width="600px"
+      width="800px"
       @ok="handleBatchUpdate"
       @cancel="resetBatchUpdateForm"
     >
@@ -287,16 +287,43 @@
         <a-form-item label="选中的商品数量">
           <a-input v-model="batchUpdateForm.selectedCount" disabled />
         </a-form-item>
-        <a-form-item label="选中的商品ID">
-          <a-input v-model="batchUpdateForm.selectedProductIds" disabled />
+        <a-form-item label="批量更新设置">
+          <a-radio-group v-model="batchUpdateForm.updateMode" @change="onUpdateModeChange">
+            <a-radio value="uniform">统一变化量</a-radio>
+            <a-radio value="individual">分别设置</a-radio>
+          </a-radio-group>
         </a-form-item>
-        <a-form-item label="库存变化量" required>
+        
+        <!-- 统一变化量模式 -->
+        <a-form-item v-if="batchUpdateForm.updateMode === 'uniform'" label="库存变化量" required>
           <a-input-number 
             v-model="batchUpdateForm.stockChange" 
             placeholder="正数为增加，负数为减少" 
             style="width: 100%" 
           />
         </a-form-item>
+        
+        <!-- 分别设置模式 -->
+        <div v-if="batchUpdateForm.updateMode === 'individual'">
+          <a-form-item label="商品库存设置" required>
+            <div class="individual-update-list">
+              <div v-for="(item, index) in batchUpdateForm.individualItems" :key="item.productId" class="individual-item">
+                <div class="item-info">
+                  <span class="product-id">商品ID: {{ item.productId }}</span>
+                  <span class="current-stock">当前库存: {{ item.currentStock }}</span>
+                </div>
+                <div class="item-controls">
+                  <a-input-number 
+                    v-model="item.stockChange" 
+                    placeholder="变化量" 
+                    style="width: 120px; margin-right: 8px" 
+                  />
+                  <span class="result-stock">结果: {{ item.currentStock + (item.stockChange || 0) }}</span>
+                </div>
+              </div>
+            </div>
+          </a-form-item>
+        </div>
       </a-form>
     </a-modal>
 
@@ -521,7 +548,9 @@ const thresholdUpdateForm = reactive({
 const batchUpdateForm = reactive({
   selectedProductIds: [],
   selectedCount: 0,
-  stockChange: null
+  stockChange: null,
+  updateMode: 'uniform', // 'uniform' 统一变化量, 'individual' 分别设置
+  individualItems: [] // 分别设置时的商品列表
 })
 
 // 统计数据
@@ -822,6 +851,11 @@ const resetThresholdUpdateForm = () => {
 
 // 显示批量更新模态框
 const showBatchUpdateModal = () => {
+  if (selectedRowKeys.value.length === 0) {
+    Message.warning('请先选择要更新的商品')
+    return
+  }
+  
   // 获取选中的商品ID
   const selectedInventories = inventories.value.filter(item => selectedRowKeys.value.includes(item.id))
   
@@ -829,22 +863,56 @@ const showBatchUpdateModal = () => {
   batchUpdateForm.selectedProductIds = selectedInventories.map(item => item.productId)
   batchUpdateForm.selectedCount = selectedRowKeys.value.length
   batchUpdateForm.stockChange = null
+  batchUpdateForm.updateMode = 'uniform'
+  
+  // 初始化分别设置模式的数据
+  batchUpdateForm.individualItems = selectedInventories.map(inventory => ({
+    productId: inventory.productId,
+    currentStock: inventory.stock,
+    stockChange: null
+  }))
   
   batchUpdateModalVisible.value = true
+}
+
+// 更新模式切换处理
+const onUpdateModeChange = () => {
+  // 切换模式时重置相关数据
+  if (batchUpdateForm.updateMode === 'uniform') {
+    batchUpdateForm.stockChange = null
+  } else {
+    batchUpdateForm.individualItems.forEach(item => {
+      item.stockChange = null
+    })
+  }
 }
 
 // 批量更新
 const handleBatchUpdate = async () => {
   try {
-    if (!batchUpdateForm.stockChange) {
-      Message.error('请输入库存变化量')
-      return
+    if (batchUpdateForm.updateMode === 'uniform') {
+      // 统一变化量模式
+      if (!batchUpdateForm.stockChange) {
+        Message.error('请输入库存变化量')
+        return
+      }
+      
+      const stockChanges = new Array(batchUpdateForm.selectedProductIds.length).fill(batchUpdateForm.stockChange)
+      await batchUpdateInventoryApi(batchUpdateForm.selectedProductIds, stockChanges)
+    } else {
+      // 分别设置模式
+      const hasEmptyChange = batchUpdateForm.individualItems.some(item => 
+        item.stockChange === null || item.stockChange === undefined
+      )
+      
+      if (hasEmptyChange) {
+        Message.error('请为所有商品设置库存变化量')
+        return
+      }
+      
+      const stockChanges = batchUpdateForm.individualItems.map(item => item.stockChange)
+      await batchUpdateInventoryApi(batchUpdateForm.selectedProductIds, stockChanges)
     }
-    
-    // 使用商品ID而不是库存记录ID
-    const stockChanges = new Array(batchUpdateForm.selectedProductIds.length).fill(batchUpdateForm.stockChange)
-    
-    await batchUpdateInventoryApi(batchUpdateForm.selectedProductIds, stockChanges)
     
     Message.success('批量更新成功')
     batchUpdateModalVisible.value = false
@@ -861,6 +929,8 @@ const resetBatchUpdateForm = () => {
   batchUpdateForm.selectedProductIds = []
   batchUpdateForm.selectedCount = 0
   batchUpdateForm.stockChange = null
+  batchUpdateForm.updateMode = 'uniform'
+  batchUpdateForm.individualItems = []
   batchUpdateFormRef.value?.resetFields()
 }
 
@@ -1072,5 +1142,57 @@ const getStockColor = (record) => {
 
 .status-inactive {
   color: #f53f3f;
+}
+
+/* 批量更新样式 */
+.individual-update-list {
+  max-height: 300px;
+  overflow-y: auto;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.individual-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 8px;
+}
+
+.individual-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.item-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.product-id {
+  font-weight: 500;
+  color: #262626;
+}
+
+.current-stock {
+  color: #666;
+  font-size: 14px;
+}
+
+.item-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.result-stock {
+  color: #52c41a;
+  font-weight: 500;
+  min-width: 80px;
 }
 </style>
